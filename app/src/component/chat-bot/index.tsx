@@ -10,14 +10,9 @@ import {
   SubmitButton,
   StopButton,
 } from './styled'
-import { IMessage } from './types'
-import { fetchChatApi } from './fetch-chat-api'
-import { toast } from 'react-hot-toast'
-import MessageComponent from './message-component'
-import { initWebRTCServices } from '../../service/webrtc'
-
-const MESSAGE_FILTER_REGEX = /MESSAGE_START\|([\s\S]*?)\|MESSAGE_END/g
-const MESSAGE_JSON_FILTER_REGEX = /JSON_START\|([\s\S]*?)\|JSON_END/g
+import { initAudioStreaming, terminateAudioStreaming } from '../../service/audio-streaming'
+import type { WebsocketCallbackArgs } from '../../service/websocket'
+import { initWebSocketConnection, WebsocketClient } from '../../service/websocket'
 
 const endCallButtonContainerStyle: React.CSSProperties = {
   display: 'flex',
@@ -25,43 +20,30 @@ const endCallButtonContainerStyle: React.CSSProperties = {
   alignItems: 'center',
 }
 
-const speakingIndicatorStyle: React.CSSProperties = {
-  marginBottom: 10,
-  color: 'gray'
-}
-
-const StartCallButton = React.memo(({ onStart }: { onStart: () => void }): React.ReactElement => {
+const StartCallButton = React.memo(({
+  onStart,
+  isConnected,
+}: {
+  onStart: () => void
+  isConnected: boolean
+}): React.ReactElement => {
   return (
-    <SubmitButton onClick={onStart}>
+    <SubmitButton
+      onClick={onStart}
+      disabled={!isConnected}
+    >
       <PhoneOutlined style={{ fontSize: 25 }} />
     </SubmitButton>
   )
 })
 
 const EndCallButton = React.memo(({ 
-  isSpeaking, 
   onEnd,
-  isWebRTCConnected 
 }: { 
-  isSpeaking: boolean
   onEnd: () => void
-  isWebRTCConnected: boolean
 }): React.ReactElement => {
   return (
     <div style={endCallButtonContainerStyle}>
-      {isSpeaking && (
-        <div style={speakingIndicatorStyle}>You're talking</div>
-      )}
-      {!isWebRTCConnected && (
-        <div style={{...speakingIndicatorStyle, color: 'orange'}}>
-          Connecting to server...
-        </div>
-      )}
-      {isWebRTCConnected && (
-        <div style={{...speakingIndicatorStyle, color: 'green'}}>
-          Connected
-        </div>
-      )}
       <StopButton onClick={onEnd}>
         <PoweroffOutlined style={{ fontSize: 25 }} />
       </StopButton>
@@ -70,378 +52,173 @@ const EndCallButton = React.memo(({
 })
 
 const ChatBot = (): React.ReactElement => {
+  // TODO: Deprecated, use isSessionStarted
   const [isPhoneStart, setIsPhoneStart] = useState<boolean>(false)
-  const [isSpeaking, setIsSpeaking] = useState<boolean>(false)
-  const [rafId, setRafId] = useState<number>(0)
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null)
-  const [isWebRTCConnected, setIsWebRTCConnected] = useState<boolean>(false)
-  
-  // Service instances
-  const wsServiceRef = useRef<any>(null)
-  const webrtcServiceRef = useRef<any>(null)
-
-
-
-
-  const [messages, setMessages] = useState<IMessage[] | []>([])
-  const [quickActions, setQuickActions] = useState<string>('')
-  const [input, setInput] = useState('')
+  const [websocketTunnel, setWebsocketTunnel] = useState<WebsocketCallbackArgs>({
+    status: 'CONNECTING',
+    responseData: undefined,
+  })
+  const isSessionStartedRef = useRef<boolean>(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
-  
-  
-  /**
-   * Voice Activity Detection (VAD)
-   */
-  const initVad = async (): Promise<boolean> => {
-    if (audioContext) return true
-    try {
-      let speaking = false
-      let lastSpokeTime = 0
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      
-      // Initialize WebRTC services
-      try {
-        const { webrtcService, wsService } = await initWebRTCServices(
-          undefined, // Use default WebRTC config
-          undefined, // Use default WebSocket config
-          {
-            onConnectionStateChange: (state) => {
-              console.log('WebRTC connection state:', state)
-              setIsWebRTCConnected(state === 'connected')
-            },
-            onDataChannelOpen: (channel) => {
-              console.log('Data channel opened')
-            },
-            onDataChannelMessage: (message) => {
-              console.log('Received data channel message:', message)
-            },
-            onWebSocketOpen: () => {
-              console.log('WebSocket connection established')
-            },
-            onWebSocketClose: () => {
-              console.log('WebSocket connection closed')
-            },
-            onWebSocketError: (error) => {
-              console.error('WebSocket connection error:', error)
-            }
-          }
-        )
+  const audioQueueRef = useRef<ArrayBuffer[]>([])
+  const isPlayingRef = useRef<boolean>(false)
 
-        webrtcServiceRef.current = webrtcService
-        wsServiceRef.current = wsService
-      } catch (error) {
-        console.error('Failed to initialize WebRTC services:', error)
-        toast.error('WebRTC initialization failed')
-        return false
+  useEffect(() => {
+    initWebSocketConnection(({ status, responseData }) => {
+      setWebsocketTunnel({
+        status,
+        responseData,
+      })
+
+      if (responseData?.event === 'SESSION_START_SUCCESS') {
+        isSessionStartedRef.current = true
       }
-      
-      const audioContext = new AudioContext()
-      setAudioContext(audioContext)
-      const source = audioContext.createMediaStreamSource(stream)
-      const analyser = audioContext.createAnalyser()
-      analyser.fftSize = 512
+    })
+  }, [])
 
-      const bufferLength = analyser.frequencyBinCount
-      const dataArray = new Uint8Array(bufferLength)
-      source.connect(analyser)
+  const handleVoiceStart = useCallback(async () => {
+    if (isPhoneStart) return
 
-      const checkSpeaking = () => {
-        if (!analyser) return
-        analyser.getByteTimeDomainData(dataArray)
+    WebsocketClient?.emit('message', {
+      event: 'SESSION_START',
+    })
 
-        let sum = 0
-        for (let i = 0; i < dataArray.length; i++) {
-          const val = (dataArray[i] - 128) / 128
-          sum += val * val
-        }
-        const rms = Math.sqrt(sum / dataArray.length)
-
-        const now = performance.now()
-        const threshold = 0.02
-        const silenceDelay = 300
-
-        if (rms > threshold) {
-          lastSpokeTime = now
-          if (!speaking) {
-            speaking = true
-            setIsSpeaking(true)
-            console.log('Started speaking, sending audio data')
-          }
-          
-          // Send audio data to backend when user is speaking
-          if (webrtcServiceRef.current?.isDataChannelOpen()) {
-            webrtcServiceRef.current.sendAudioChunk(
-              Array.from(dataArray),
-              now,
-              rms
-            )
-          }
-        } else if (speaking && now - lastSpokeTime > silenceDelay) {
-          speaking = false
-          setIsSpeaking(false)
-          console.log('Stopped speaking')
-          
-          // Send stop signal
-          if (webrtcServiceRef.current?.isDataChannelOpen()) {
-            webrtcServiceRef.current.sendAudioStop(now)
-          }
-        }
-
-        const rafId = requestAnimationFrame(checkSpeaking)
-        setRafId(rafId)
+    await initAudioStreaming((audioChunk) => {
+      if (!isSessionStartedRef.current) {
+        return
       }
-
-      checkSpeaking()
-
-      return true
-    } catch (err) {
-      console.error('Microphone access failed:', err)
-      return false
-    }
-  }
-
-  const handleErrorMessage = () => {
-    setMessages(preMessage => {
-      if (preMessage.length === 0) {
-        return [{
-          content: 'Request failed, please refresh the page and try again.',
-          role: 'assistant',
-          timestamp: new Date(),
-        }]
-      }
-
-      return preMessage.map(msg => {
-        if (msg.content === 'loading' && msg.role === 'assistant') {
-          return { ...msg, content: 'Request failed, please refresh the page and try again.' }
-        }
-        return msg
+      WebsocketClient?.emit('message', {
+        event: 'USER_AUDIO_CHUNK',
+        data: audioChunk,
       })
     })
-  }
 
-  const handleSend = useCallback(async (value?: string) => {
-    const inputValue = value || input.trim()
-    if (inputValue) {
-      const userNewMessage: IMessage = {
-        role: 'user',
-        content: inputValue,
-        timestamp: new Date(),
-      }
-  
-      const loadingMessage: IMessage = {
-        role: 'assistant',
-        content: 'loading',
-        timestamp: new Date(),
-      }
+    setIsPhoneStart(true)
+  }, [isPhoneStart])
 
-      setMessages((prevMessages) => [...prevMessages, userNewMessage, loadingMessage])
-      setInput('')
+  const handleVoiceEnd = useCallback(() => {
+    WebsocketClient?.emit('message', {
+      event: 'SESSION_END',
+    })
+    setIsPhoneStart(false)
+    isSessionStartedRef.current = false
+    terminateAudioStreaming()
+    
+    // Clear audio queue when session ends
+    audioQueueRef.current = []
+    isPlayingRef.current = false
+    console.log('Cleared audio queue')
+  }, [])
 
-      setTimeout(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-      }, 100)
-  
-      try {
-        const requestPayload = JSON.stringify({
-          messages: [...messages, userNewMessage],
-        })
-
-        const response = await fetchChatApi(requestPayload)
-        
-        if (!response || !response?.ok) {
-          handleErrorMessage()
-          return toast.error(response?.statusText || 'Data fetch failed!')
-        }
-
-        const stream = response.body
-        if (!stream) return
-  
-        const reader = stream.getReader()
-        const decoder = new TextDecoder()
-        let assistantContent = ''
-  
-        const readChunk = async () => {
-          const { value, done } = await reader.read()
-          if (done) {
-            const messagesFilterInArray = Array.from(
-              assistantContent.matchAll(MESSAGE_FILTER_REGEX),
-              match => match[1].trim()
-            )
-
-            const newMessage: IMessage[] = messagesFilterInArray.map(eachNewMessage => ({
-              role: 'assistant',
-              content: eachNewMessage,
-              timestamp: new Date(),
-            }))
-
-            setMessages(prevMessages => {
-              const updatedMessages = [...prevMessages]
-              const lastCurrentMessage = updatedMessages[updatedMessages.length - 1]
-
-              if (lastCurrentMessage?.content === 'loading' && lastCurrentMessage?.role === 'assistant') {
-                updatedMessages[updatedMessages.length - 1] = {
-                  ...lastCurrentMessage,
-                  content: newMessage[0].content,
-                  timestamp: newMessage[0].timestamp,
-                }
-                updatedMessages.push(...newMessage.slice(1))
-              } else {
-                updatedMessages.push(...newMessage)
-              }
-
-              return updatedMessages
-            })
-
-            setTimeout(() => {
-              chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-            }, 100)
-
-            return
-          }
-  
-          const chunkString = decoder.decode(value)
-          assistantContent += chunkString
-          readChunk()
-        }
-  
-        readChunk()
-      } catch (error) {
-        console.error('Error sending message:', error)
-      }
+  const playAudioChunk = useCallback(async (audioChunk: ArrayBuffer) => {
+    // Add to queue
+    audioQueueRef.current.push(audioChunk)
+    console.log('Added audio chunk to queue. Queue length:', audioQueueRef.current.length)
+    
+    // Start processing queue if not already playing
+    if (!isPlayingRef.current) {
+      processAudioQueue()
     }
-  }, [input, messages])
+  }, [])
 
-  const handleVoiceStart = async () => {
-    const isVadInitialized = await initVad()
-    if (!isVadInitialized) {
-      console.error('Failed to initialize VAD')
-    } else {
-      console.log('VAD initialized')
-      setMessages([])
-      setQuickActions('')
-      setIsPhoneStart(true)
+  const processAudioQueue = useCallback(async () => {
+    if (isPlayingRef.current || audioQueueRef.current.length === 0) {
+      return
     }
-  }
-  
-  const hasFetchedGreeting = useRef(false)
-  const getGreetingMessage = useCallback(async () => {
-    if (hasFetchedGreeting.current) return
-    hasFetchedGreeting.current = true
+
+    isPlayingRef.current = true
+    const audioChunk = audioQueueRef.current.shift()
+    
+    if (!audioChunk) {
+      isPlayingRef.current = false
+      return
+    }
+
     try {
-      const requestPayload = JSON.stringify({
-        messages: [],
+      console.log('Playing audio chunk:', {
+        size: audioChunk.byteLength,
+        queueLength: audioQueueRef.current.length,
       })
-      const response = await fetchChatApi(requestPayload)
-
-      if (!response || !response?.ok) {
-        handleErrorMessage()
-        return toast.error(response?.statusText || 'Data fetch failed!')
-      }
-
-      const stream = response.body
-      if (!stream) return
       
-      const reader = stream.getReader()
-      const decoder = new TextDecoder()
-      let assistantContent = ''
-
-      const readChunk = async () => {
-        const { value, done } = await reader.read()
-        if (done) {
-          const messagesArray = Array.from(
-            assistantContent.matchAll(MESSAGE_FILTER_REGEX),
-            match => match[1].trim() 
-          )
-          
-          const quickActionArray = Array.from(
-            assistantContent.matchAll(MESSAGE_JSON_FILTER_REGEX),
-            match => match[1].trim() 
-          )
-
-          if (quickActionArray && quickActionArray.length > 0) {
-            setQuickActions(quickActionArray[0])
-          }
-
-          const newMessages: IMessage[] = []
-          messagesArray.map(message => {
-            newMessages.push({
-              role: 'assistant',
-              content: message,
-              timestamp: new Date(),
-            })
-          })
-          setMessages(newMessages)
-          hasFetchedGreeting.current = false
-          return
-        }
-
-        let chunkString = decoder.decode(value)
-        chunkString = chunkString.replace(/ +/g, ' ')
-        chunkString = chunkString.replace(/\s*'\s*/g, '\'')
-        chunkString = chunkString.replace(/`/g, '')
-        assistantContent += chunkString
-        readChunk()
+      // Create an AudioContext
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      
+      // Convert ArrayBuffer to Int16Array (PCM16)
+      const int16Array = new Int16Array(audioChunk)
+      
+      // Convert Int16Array to Float32Array
+      const float32Array = new Float32Array(int16Array.length)
+      for (let i = 0; i < int16Array.length; i++) {
+        float32Array[i] = int16Array[i] / 0x7FFF // Normalize to -1.0 to 1.0
       }
-
-      readChunk()
+      
+      // Create an AudioBuffer with the correct sample rate (OpenAI Realtime API uses 24kHz)
+      const audioBufferObj = audioContext.createBuffer(1, float32Array.length, 24000)
+      audioBufferObj.copyToChannel(float32Array, 0) // Copy PCM data to the buffer
+      
+      // Create a BufferSource to play the audio
+      const source = audioContext.createBufferSource()
+      source.buffer = audioBufferObj
+      source.connect(audioContext.destination)
+      
+      // When this chunk finishes playing, process the next one
+      source.onended = () => {
+        console.log('Audio chunk finished playing')
+        isPlayingRef.current = false
+        // Process next chunk in queue
+        setTimeout(() => processAudioQueue(), 10) // Small delay to prevent overlap
+      }
+      
+      source.start(0) // Start playback
+      console.log('Started playing audio chunk')
+      
     } catch (error) {
-      console.error('Error sending message:', error)
+      console.error('Error playing audio chunk:', error)
+      isPlayingRef.current = false
+      // Try next chunk even if this one failed
+      setTimeout(() => processAudioQueue(), 10)
     }
   }, [])
 
   useEffect(() => {
-    if (isPhoneStart && messages.length === 0) {
-      getGreetingMessage()
+    if (
+      websocketTunnel.status === 'CONNECTED' &&
+      websocketTunnel?.responseData?.event === 'USER_AUDIO_CHUNK'
+    ) {
+      console.log('Received audio chunk')
+      console.log('WebSocket response data:', websocketTunnel.responseData)
+      console.log('Data type:', typeof websocketTunnel.responseData.data)
+      console.log('Data constructor:', websocketTunnel.responseData.data?.constructor?.name)
+      
+      const audioChunkFromServer = websocketTunnel.responseData.data as ArrayBuffer
+      playAudioChunk(audioChunkFromServer)
     }
-  }, [isPhoneStart])
-
-  const handleVoiceEnd = useCallback(() => {
-    setIsPhoneStart(false)
-    setIsSpeaking(false)
-    cancelAnimationFrame(rafId)
-    
-    // Cleanup WebRTC service
-    if (webrtcServiceRef.current) {
-      webrtcServiceRef.current.close()
-      webrtcServiceRef.current = null
-    }
-    
-    // Cleanup WebSocket service
-    if (wsServiceRef.current) {
-      wsServiceRef.current.close()
-      wsServiceRef.current = null
-    }
-    
-    // Cleanup audio context
-    if (audioContext) {
-      audioContext.close()
-      setAudioContext(null)
-    }
-    
-    setRafId(0)
-    setIsWebRTCConnected(false)
-  }, [rafId, audioContext])
-
+  }, [websocketTunnel])
 
   return (
     <ChatContainer>
+      <div style={{
+        marginBottom: 10,
+        color: 'gray',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        Connection status: { websocketTunnel.status }
+      </div>
       <ChatDisplay>
-        <MessageComponent
-          messages={messages}
-          quickActions={quickActions}
-          handleSend={handleSend}
-        />
         <div id="chatbot-container-bottom" style={{height: 20}} ref={chatEndRef} />
       </ChatDisplay>
       <ChatInputContainer>
         {
           isPhoneStart
             ? <EndCallButton 
-                isSpeaking={isSpeaking} 
-                onEnd={handleVoiceEnd} 
-                isWebRTCConnected={isWebRTCConnected}
+                onEnd={handleVoiceEnd}
               />
-            : <StartCallButton onStart={handleVoiceStart} />
+            : <StartCallButton
+                onStart={handleVoiceStart}
+                isConnected={websocketTunnel.status === 'CONNECTED'}
+              />
         }
       </ChatInputContainer>
     </ChatContainer>

@@ -1,56 +1,26 @@
 import express from 'express'
 import { config } from 'dotenv'
-import cookieParser from 'cookie-parser'
-import { exec } from 'child_process'
+import { createServer } from 'http'
 import logger from './misc/logger'
-import { chatMiddleware, requestValidator } from './middleware/chat'
-import { corsMiddleware } from './middleware/cors'
-import { startApolloServer } from './service/apollo-graphql'
-import { initOpenAiClient } from './service/open-ai'
+import { initWebSocketServer } from './service/websocket'
 
 config()
 
-const runPrismaMigrations = () => {
-  logger.info('Running Prisma migrations...')
-  exec(
-    'PRISMA_HIDE_UPDATE_MESSAGE=true npx prisma migrate deploy',
-    (error, stdout, stderr) => {
-      if (error) {
-        logger.error('Error running migrations')
-        logger.error(error)
-        process.exit(1)
-      }
-      if (stderr) {
-        logger.error('Migration stderr')
-        logger.error(stderr)
-      }
-      logger.info('Migration completed')
-      logger.info(stdout)
-      startServices()
-    }
-  )
-}
-
 const startServices = async () => {
-  initOpenAiClient()
-
   const PORT = process.env.PORT || 4000
-  const expressClient = express()
-  expressClient.use(corsMiddleware())
-  expressClient.use(cookieParser())
-  expressClient.use(express.json())
-  expressClient.post('/api/chat', ...requestValidator, chatMiddleware)
+  const app = express()
+  app.use(express.json())
+  const httpServer = createServer(app)
+  initWebSocketServer(httpServer)
 
-  await startApolloServer(expressClient)
-
-  expressClient.listen(PORT, () => {
-    logger.info(`🚀  Server ready at: http://localhost:${PORT}/graphql`)
-    logger.info(`💬  Chat endpoint at: http://localhost:${PORT}/chat`)
+  httpServer.listen(PORT, () => {
+    logger.info(`🚀  HTTP Server ready at: http://localhost:${PORT}`)
+    logger.info(`🚀  Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`)
   })
 }
 
-if (process.env.ENVIRONMENT === 'PROD') {
-  runPrismaMigrations()
-} else {
+try {
   startServices()
+} catch (err) {
+  logger.error({ err }, 'Application start failed due to error')
 }

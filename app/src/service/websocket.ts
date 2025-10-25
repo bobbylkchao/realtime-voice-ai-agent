@@ -1,197 +1,69 @@
-/**
- * WebSocket Signaling Service
- */
+import { io } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 
-export interface SignalingMessage {
-  type: 'offer' | 'answer' | 'ice-candidate' | 'audio-chunk' | 'audio-stop'
-  offer?: RTCSessionDescriptionInit
-  answer?: RTCSessionDescriptionInit
-  candidate?: RTCIceCandidateInit
-  data?: any
-  timestamp?: number
-}
+export let WebsocketClient: Socket | undefined = undefined
 
-export interface WebSocketServiceConfig {
-  serverUrl: string
-  onMessage?: (message: SignalingMessage) => void
-  onOpen?: () => void
-  onClose?: () => void
-  onError?: (error: Event) => void
-}
+export type WebsocketClientEventType =
+  'DISCONNECTED' | 'CONNECTED' | 'CONNECTING' | 'ERROR'
 
-export class WebSocketService {
-  private ws: WebSocket | null = null
-  private config: WebSocketServiceConfig
-  private reconnectAttempts = 0
-  private maxReconnectAttempts = 5
-  private reconnectDelay = 1000
+export type WebsocketServerEventType =
+  'SESSION_START_ERROR' | 'SESSION_START_SUCCESS' | 'SESSION_END_SUCCESS' | 'SESSION_END_ERROR' | 'USER_AUDIO_CHUNK'
 
-  constructor(config: WebSocketServiceConfig) {
-    this.config = config
-  }
-
-  async connect(): Promise<WebSocket> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.ws = new WebSocket(this.config.serverUrl)
-        
-        this.ws.onopen = () => {
-          console.log('WebSocket connection established')
-          this.reconnectAttempts = 0
-          this.config.onOpen?.()
-          resolve(this.ws!)
-        }
-        
-        this.ws.onerror = (error) => {
-          console.error('WebSocket connection error:', error)
-          this.config.onError?.(error)
-          reject(error)
-        }
-        
-        this.ws.onclose = () => {
-          console.log('WebSocket connection closed')
-          this.config.onClose?.()
-          this.handleReconnect()
-        }
-        
-        this.ws.onmessage = (event) => {
-          try {
-            const data: SignalingMessage = JSON.parse(event.data)
-            this.config.onMessage?.(data)
-          } catch (error) {
-            console.error('Error processing signaling message:', error)
-          }
-        }
-      } catch (error) {
-        reject(error)
-      }
-    })
-  }
-
-  /**
-   * Send message to server
-   */
-  send(message: SignalingMessage): boolean {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message))
-      return true
-    } else {
-      console.warn('WebSocket not connected, cannot send message')
-      return false
-    }
-  }
-
-  /**
-   * Send offer
-   */
-  sendOffer(offer: RTCSessionDescriptionInit): boolean {
-    return this.send({
-      type: 'offer',
-      offer
-    })
-  }
-
-  /**
-   * Send answer
-   */
-  sendAnswer(answer: RTCSessionDescriptionInit): boolean {
-    return this.send({
-      type: 'answer',
-      answer
-    })
-  }
-
-  /**
-   * Send ICE candidate
-   */
-  sendIceCandidate(candidate: RTCIceCandidateInit): boolean {
-    return this.send({
-      type: 'ice-candidate',
-      candidate
-    })
-  }
-
-  /**
-   * Send audio data
-   */
-  sendAudioData(data: any, timestamp: number): boolean {
-    return this.send({
-      type: 'audio-chunk',
-      data,
-      timestamp
-    })
-  }
-
-  /**
-   * Send audio stop signal
-   */
-  sendAudioStop(timestamp: number): boolean {
-    return this.send({
-      type: 'audio-stop',
-      timestamp
-    })
-  }
-
-  /**
-   * Get connection state
-   */
-  getConnectionState(): number | null {
-    return this.ws?.readyState || null
-  }
-
-  /**
-   * Check if connected
-   */
-  isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN
-  }
-
-  /**
-   * Close connection
-   */
-  close(): void {
-    if (this.ws) {
-      this.ws.close()
-      this.ws = null
-    }
-  }
-
-  /**
-   * Handle reconnection logic
-   */
-  private handleReconnect(): void {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++
-      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
-      
-      setTimeout(() => {
-        this.connect().catch(error => {
-          console.error('Reconnection failed:', error)
-        })
-      }, this.reconnectDelay * this.reconnectAttempts)
-    } else {
-      console.error('Maximum reconnection attempts reached, stopping reconnection')
-    }
-  }
-
-  /**
-   * Update configuration
-   */
-  updateConfig(newConfig: Partial<WebSocketServiceConfig>): void {
-    this.config = { ...this.config, ...newConfig }
+export interface WebsocketCallbackArgs {
+  status: WebsocketClientEventType
+  responseData?: {
+    event: WebsocketServerEventType,
+    data?: object | null | string | ArrayBuffer
   }
 }
 
-/**
- * Create WebSocket service instance
- */
-export const createWebSocketService = (config: WebSocketServiceConfig): WebSocketService => {
-  return new WebSocketService(config)
-}
+export const initWebSocketConnection = (
+  callback: (args: WebsocketCallbackArgs) => void,
+): typeof WebsocketClient => {
+  try {
+    if (WebsocketClient) return WebsocketClient
 
-/**
- * Default configuration
- */
-export const DEFAULT_WEBSOCKET_CONFIG: Partial<WebSocketServiceConfig> = {
-  serverUrl: 'ws://localhost:4000'
+    WebsocketClient = io(process.env.REACT_APP_API_CHAT_SERVER_URL, {
+      path: process.env.REACT_APP_API_CHAT_SERVER_REALTIME_PATH,
+      transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+    })
+  
+    WebsocketClient.on('error', (error) => {
+      console.error('Websocket connection error', error)
+      callback({
+        status: 'ERROR',
+      })
+    })
+  
+    WebsocketClient.on('disconnect', (reason) => {
+      console.error('Websocket connection disconnected', reason)
+      callback({
+        status: 'DISCONNECTED',
+      })
+    })
+
+    WebsocketClient.on('connect', () => {
+      console.log(`Websocket connection established! Socket ID: ${WebsocketClient?.id}`)
+      callback({
+        status: 'CONNECTED',
+      })
+    })
+
+    WebsocketClient.on('message', (data) => {
+      callback({
+        status: 'CONNECTED',
+        responseData: data,
+      })
+    })
+  
+    return WebsocketClient
+  } catch (err) {
+    console.error('Failed init Websocket connection', err)
+    callback({
+      status: 'ERROR',
+    })
+  }
 }

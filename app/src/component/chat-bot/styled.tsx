@@ -140,6 +140,12 @@ export const SubmitButton = styled(Button)`
   height: 60px;
   width: 60px;
   color: #ffffff;
+
+  &:disabled {
+    background-color: #cccccc;
+    color: #666666;
+    cursor: not-allowed;
+  }
 `
 
 export const StopButton = styled(RedButton)`
