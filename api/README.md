@@ -16,9 +16,7 @@ Configure OpenAI API settings in .env:
 
 ```
 OPENAI_API_KEY=
-OPENAI_ORGANIZATION_ID=
-OPENAI_PROJECT_ID=
-OPENAI_MODEL=gpt-3.5-turbo
+OPENAI_VOICE_MODEL=gpt-realtime
 ```
 
 ## Start API Application
@@ -26,8 +24,3 @@ OPENAI_MODEL=gpt-3.5-turbo
 ```
 npm run dev
 ```
-
-## API Endpoints
-
-- Server: http://localhost:4000
-- Basic Express server with OpenAI client initialization

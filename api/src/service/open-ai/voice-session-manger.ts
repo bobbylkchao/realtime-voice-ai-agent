@@ -74,7 +74,7 @@ const createOpenAiVoiceAgentAndSession = async (
     })*/
 
     openAiVoiceSession.on('audio', (event: TransportLayerAudio) => {
-      logger.info('🎵 Audio is generated')
+      logger.info('Audio is generated')
       socket.emit('message', {
         event: 'USER_AUDIO_CHUNK',
         data: event.data,
@@ -82,34 +82,34 @@ const createOpenAiVoiceAgentAndSession = async (
     })
 
     openAiVoiceSession.on('audio_start', (context, agent) => {
-      logger.info({ clientId }, '🎵 Audio generation started')
+      logger.info({ clientId }, 'Audio generation started')
     })
 
     openAiVoiceSession.on('audio_stopped', (context, agent) => {
-      logger.info({ clientId }, '🎵 Audio generation stopped')
+      logger.info({ clientId }, 'Audio generation stopped')
     })
 
     openAiVoiceSession.on('audio_interrupted', (context, agent) => {
-      logger.info({ clientId }, '⏹️ Audio was interrupted')
+      logger.info({ clientId }, 'Audio was interrupted')
     })
 
     openAiVoiceSession.on('turn_started', (event) => {
-      logger.info({ event, clientId }, '🔄 Turn started - model is generating response')
+      logger.info({ event, clientId }, 'Turn started - model is generating response')
     })
 
     openAiVoiceSession.on('turn_done', (event) => {
-      logger.info({ event, clientId }, '✅ Turn completed - model finished response')
+      logger.info({ event, clientId }, 'Turn completed - model finished response')
     })
 
     openAiVoiceSession.on('error', (error) => {
-      logger.error({ error, clientId }, '❌ Session error occurred')
+      logger.error({ error, clientId }, 'Session error occurred')
     })
 
     openAiVoiceSession.on('connection_change', (status) => {
-      logger.info({ status, clientId }, '🔌 Connection status changed')
+      logger.info({ status, clientId }, 'Connection status changed')
     })
 
-    logger.info({ clientId }, '✅  OpenAI Voice Agent Session created.')
+    logger.info({ clientId }, 'OpenAI Voice Agent Session created.')
 
     return openAiVoiceSession
   } catch (error) {

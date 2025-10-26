@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import markdownit from 'markdown-it'
 import { IMessage, IComponentItem } from './types'
 import LoadingAnimation from '../loading-animation'
 import { MessageItem, ComponentWrapper } from './styled'
@@ -13,18 +12,10 @@ interface MessageItemComponentProps {
 const MessageItemComponent: React.FC<MessageItemComponentProps> = ({ message }) => {
   const [content, setContent] = useState(message.content)
   const [components, setComponents] = useState<null | IComponentItem[]>(null)
-  const md = markdownit({
-    html: true,
-    linkify: true,
-    typographer: false,
-    breaks: true,
-    quotes: '“”‘’',
-  })
-  md.linkify.set({ fuzzyEmail: false })
 
   const updateMessageContent = useCallback(async (newMessage: IMessage) => {
     if (newMessage.role === 'assistant' && newMessage.content !== 'loading') {
-      const htmlContent = md.render(md.render(newMessage.content))
+      const htmlContent = newMessage.content
       setContent(addTargetAttrToHyperLink(htmlContent ))
       if (newMessage?.componentItem && newMessage.componentItem.length > 0) {
         setComponents(newMessage.componentItem)

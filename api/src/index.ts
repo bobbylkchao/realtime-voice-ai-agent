@@ -14,8 +14,8 @@ const startServices = async () => {
   initWebSocketServer(httpServer)
 
   httpServer.listen(PORT, () => {
-    logger.info(`🚀  HTTP Server ready at: http://localhost:${PORT}`)
-    logger.info(`🚀  Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`)
+    logger.info(`HTTP Server ready at: http://localhost:${PORT}`)
+    logger.info(`Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`)
   })
 }
 
