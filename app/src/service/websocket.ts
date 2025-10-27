@@ -53,6 +53,7 @@ export const initWebSocketConnection = (
     })
 
     WebsocketClient.on('message', (data) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       callback({
         status: 'CONNECTED',
         responseData: data,

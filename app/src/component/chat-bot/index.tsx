@@ -36,6 +36,7 @@ const StartCallButton = React.memo(({
     </SubmitButton>
   )
 })
+StartCallButton.displayName = 'StartCallButton'
 
 const EndCallButton = React.memo(({ 
   onEnd,
@@ -50,6 +51,7 @@ const EndCallButton = React.memo(({
     </div>
   )
 })
+EndCallButton.displayName = 'EndCallButton'
 
 const ChatBot = (): React.ReactElement => {
   const [websocketTunnel, setWebsocketTunnel] = useState<WebsocketCallbackArgs>({
@@ -61,8 +63,7 @@ const ChatBot = (): React.ReactElement => {
   const audioQueueRef = useRef<ArrayBuffer[]>([])
   const isPlayingRef = useRef<boolean>(false)
   const audioContextRef = useRef<AudioContext | null>(null)
-  const audioBufferQueueRef = useRef<AudioBuffer[]>([])
-  const isProcessingQueueRef = useRef<boolean>(false)
+  const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null)
 
   useEffect(() => {
     initWebSocketConnection(({ status, responseData }) => {
@@ -84,15 +85,18 @@ const ChatBot = (): React.ReactElement => {
       event: 'SESSION_START',
     })
 
-    await initAudioStreaming((audioChunk) => {
-      if (!isSessionStartedRef.current) {
-        return
-      }
-      WebsocketClient?.emit('message', {
-        event: 'USER_AUDIO_CHUNK',
-        data: audioChunk,
-      })
-    })
+    await initAudioStreaming(
+      (audioChunk) => {
+        if (!isSessionStartedRef.current) {
+          return
+        }
+        WebsocketClient?.emit('message', {
+          event: 'USER_AUDIO_CHUNK',
+          data: audioChunk,
+        })
+      },
+      stopAudioPlayback // Callback for user interruption
+    )
   }, [])
 
   const handleVoiceEnd = useCallback(() => {
@@ -106,11 +110,73 @@ const ChatBot = (): React.ReactElement => {
     audioQueueRef.current = []
     isPlayingRef.current = false
     
+    // Stop current audio playback immediately
+    if (currentAudioSourceRef.current) {
+      try {
+        currentAudioSourceRef.current.stop()
+      } catch {
+        // Audio source might already be stopped
+      }
+      currentAudioSourceRef.current = null
+    }
+    
     // Close AudioContext to free resources
     if (audioContextRef.current) {
       audioContextRef.current.close()
       audioContextRef.current = null
     }
+  }, [])
+
+  const stopAudioPlayback = useCallback(() => {
+    // Stop current audio playback with fade out effect (for user interruption)
+    if (currentAudioSourceRef.current && audioContextRef.current) {
+      try {
+        const audioContext = audioContextRef.current
+        const source = currentAudioSourceRef.current
+        
+        // Create a gain node for fade out
+        const gainNode = audioContext.createGain()
+        
+        // Disconnect source from destination and connect through gain node
+        source.disconnect()
+        source.connect(gainNode)
+        gainNode.connect(audioContext.destination)
+        
+        // Apply quick fade out (100ms)
+        const currentTime = audioContext.currentTime
+        gainNode.gain.setValueAtTime(1, currentTime)
+        gainNode.gain.linearRampToValueAtTime(0, currentTime + 0.1) // 100ms fade out
+        
+        // Stop the source after fade out completes
+        setTimeout(() => {
+          try {
+            if (source) {
+              source.stop()
+            }
+          } catch {
+            // Source might already be stopped
+          }
+        }, 100)
+        
+        currentAudioSourceRef.current = null
+      } catch {
+        // Fallback to immediate stop if fade out fails
+        if (currentAudioSourceRef.current) {
+          try {
+            currentAudioSourceRef.current.stop()
+          } catch {
+            // Audio source might already be stopped
+          }
+          currentAudioSourceRef.current = null
+        }
+      }
+    }
+    
+    // Clear the audio queue
+    audioQueueRef.current = []
+    isPlayingRef.current = false
+    
+    console.log('Audio playback stopped with fade out due to user interruption')
   }, [])
 
   const playAudioChunk = useCallback(async (audioChunk: ArrayBuffer) => {
@@ -206,11 +272,15 @@ const ChatBot = (): React.ReactElement => {
       const source = audioContext.createBufferSource()
       source.buffer = audioBufferObj
       
+      // Store reference for interruption capability
+      currentAudioSourceRef.current = source
+      
       // Connect directly to destination for seamless playback
       source.connect(audioContext.destination)
       
       // When this combined audio finishes playing, process the next batch
       source.onended = () => {
+        currentAudioSourceRef.current = null
         isPlayingRef.current = false
         // Process next batch of chunks
         processAudioQueue()

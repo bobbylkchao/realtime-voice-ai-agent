@@ -6,6 +6,7 @@ import { IMessage } from './types'
 interface Props {
   messages: IMessage[]
   quickActions: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   handleSend: (value?: string) => Promise<string | undefined>
 }
 

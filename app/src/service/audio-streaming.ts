@@ -4,6 +4,7 @@ let mediaStream: MediaStream | null = null
 
 export const initAudioStreaming = async (
   callback: (audioChunk: ArrayBuffer) => void,
+  onUserInterruption?: () => void,
 ): Promise<void> => {
   if (audioContext) return
   try {
@@ -35,26 +36,43 @@ export const initAudioStreaming = async (
       return buffer
     }
 
+    let isUserSpeaking = false
+    let silenceFrames = 0
+    const silenceThreshold = 10 // frames of silence before considering user stopped speaking
+    const volumeThreshold = 0.01 // lower threshold for more sensitive detection
+    
     const streamAudio = () => {
       if (!analyser) return
       analyser.getFloatTimeDomainData(dataArray)
     
-      // Volume check logic - only stream audio when there's sufficient volume
+      // Volume check logic for user interruption detection
       let sum = 0
       for (let i = 0; i < dataArray.length; i++) {
         sum += dataArray[i] * dataArray[i]
       }
       const rms = Math.sqrt(sum / dataArray.length)
-      const threshold = 0.02
       
-      // Only stream audio chunks when volume is above threshold
-      /*if (rms > threshold) {
-        // Convert to PCM16 ArrayBuffer and stream only when there's audio
-        const pcm16Buffer = float32ToPCM16(dataArray.slice())
-        callback(pcm16Buffer)
-      }*/
+      // Detect user speaking for interruption
+      if (rms > volumeThreshold) {
+        if (!isUserSpeaking) {
+          isUserSpeaking = true
+          silenceFrames = 0
+          // User started speaking - trigger interruption
+          if (onUserInterruption) {
+            onUserInterruption()
+          }
+        }
+      } else {
+        silenceFrames++
+        if (isUserSpeaking && silenceFrames > silenceThreshold) {
+          isUserSpeaking = false
+          silenceFrames = 0
+        }
+      }
 
+      // Always stream audio chunks (for backend processing)
       const pcm16Buffer = float32ToPCM16(dataArray.slice())
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       callback(pcm16Buffer)
       
       rafId = requestAnimationFrame(streamAudio)

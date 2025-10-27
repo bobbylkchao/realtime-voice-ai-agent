@@ -237,6 +237,107 @@ useEffect(() => {
 2. Chunk added to processing queue
 3. Automatic processing if not already playing
 
+## User Interruption Feature
+
+### Real-time User Speech Detection
+```typescript
+// In audio-streaming.ts
+let isUserSpeaking = false
+let silenceFrames = 0
+const silenceThreshold = 10 // frames of silence before considering user stopped speaking
+const volumeThreshold = 0.01 // lower threshold for more sensitive detection
+
+const streamAudio = () => {
+  // Volume check logic for user interruption detection
+  let sum = 0
+  for (let i = 0; i < dataArray.length; i++) {
+    sum += dataArray[i] * dataArray[i]
+  }
+  const rms = Math.sqrt(sum / dataArray.length)
+  
+  // Detect user speaking for interruption
+  if (rms > volumeThreshold) {
+    if (!isUserSpeaking) {
+      isUserSpeaking = true
+      silenceFrames = 0
+      // User started speaking - trigger interruption
+      if (onUserInterruption) {
+        onUserInterruption()
+      }
+    }
+  } else {
+    silenceFrames++
+    if (isUserSpeaking && silenceFrames > silenceThreshold) {
+      isUserSpeaking = false
+      silenceFrames = 0
+    }
+  }
+}
+```
+
+### Smooth Audio Playback Stop with Fade Out
+```typescript
+const stopAudioPlayback = useCallback(() => {
+  // Stop current audio playback with fade out effect (for user interruption)
+  if (currentAudioSourceRef.current && audioContextRef.current) {
+    try {
+      const audioContext = audioContextRef.current
+      const source = currentAudioSourceRef.current
+      
+      // Create a gain node for fade out
+      const gainNode = audioContext.createGain()
+      
+      // Disconnect source from destination and connect through gain node
+      source.disconnect()
+      source.connect(gainNode)
+      gainNode.connect(audioContext.destination)
+      
+      // Apply quick fade out (100ms)
+      const currentTime = audioContext.currentTime
+      gainNode.gain.setValueAtTime(1, currentTime)
+      gainNode.gain.linearRampToValueAtTime(0, currentTime + 0.1) // 100ms fade out
+      
+      // Stop the source after fade out completes
+      setTimeout(() => {
+        try {
+          source.stop()
+        } catch (error) {
+          // Source might already be stopped
+        }
+      }, 100)
+      
+      currentAudioSourceRef.current = null
+    } catch (error) {
+      // Fallback to immediate stop if fade out fails
+      try {
+        currentAudioSourceRef.current.stop()
+      } catch (stopError) {
+        // Audio source might already be stopped
+      }
+      currentAudioSourceRef.current = null
+    }
+  }
+  
+  // Clear the audio queue
+  audioQueueRef.current = []
+  isPlayingRef.current = false
+}, [])
+```
+
+**Purpose**: Provides smooth response to user speech by fading out current audio playback.
+
+**Key Features**:
+- **Real-time Detection**: Uses RMS volume analysis to detect user speech
+- **Smooth Fade Out**: 100ms linear fade out for natural transition
+- **Queue Clearing**: Removes all pending audio chunks
+- **Fallback Safety**: Immediate stop if fade out fails
+- **No Audio Artifacts**: Prevents clicks and pops during interruption
+
+**Detection Parameters**:
+- **Volume Threshold**: 0.01 (sensitive detection)
+- **Silence Threshold**: 10 frames (prevents false triggers)
+- **Analysis Frequency**: 60fps (requestAnimationFrame)
+
 ## Technical Specifications
 
 ### Audio Format

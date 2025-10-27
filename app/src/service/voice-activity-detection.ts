@@ -60,6 +60,7 @@ export const initVoiceActivityDetection = async (
         }
         // Convert to PCM16 ArrayBuffer for OpenAI Realtime API
         const pcm16Buffer = float32ToPCM16(dataArray.slice())
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         callback(speaking, pcm16Buffer)
       } else if (speaking && now - lastSpokeTime > silenceDelay) {
         speaking = false

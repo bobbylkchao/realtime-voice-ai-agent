@@ -8,6 +8,7 @@ interface IQuickActions {
 
 interface IQuickActionsProps {
   data: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSend: (value: string) => Promise<string | undefined>
 }
 
