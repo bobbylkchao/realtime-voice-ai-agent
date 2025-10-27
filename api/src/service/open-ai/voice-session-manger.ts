@@ -19,13 +19,16 @@ const createOpenAiVoiceAgentAndSession = async (
   
     const openAiVoiceAgent = new RealtimeAgent({
       name: 'Realtime Voice Agent',
-      voice: 'alloy',
+      voice: 'cedar',
       instructions: 'You are a helpful assistant that can answer questions and help with tasks.',
     })
   
     /**
      * VAD part, refer to https://platform.openai.com/docs/guides/realtime-vad
      * The PCM audio format. Only a 24kHz sample rate is supported.
+     * 
+     * The rest of configuration please refer to:
+     * https://platform.openai.com/docs/api-reference/realtime-client-events/session/update
      */
     const openAiVoiceSession = new RealtimeSession(openAiVoiceAgent, {
       model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
@@ -47,7 +50,12 @@ const createOpenAiVoiceAgentAndSession = async (
             },
           },
           output: {
-            format: 'pcm16',
+            format: {
+              rate: 24000,
+              type: 'audio/pcm',
+            },
+            speed: 1.1,
+            voice: 'cedar',
           },
         },
       },
@@ -74,19 +82,10 @@ const createOpenAiVoiceAgentAndSession = async (
     })*/
 
     openAiVoiceSession.on('audio', (event: TransportLayerAudio) => {
-      logger.info('Audio is generated')
       socket.emit('message', {
         event: 'USER_AUDIO_CHUNK',
         data: event.data,
       })
-    })
-
-    openAiVoiceSession.on('audio_start', (context, agent) => {
-      logger.info({ clientId }, 'Audio generation started')
-    })
-
-    openAiVoiceSession.on('audio_stopped', (context, agent) => {
-      logger.info({ clientId }, 'Audio generation stopped')
     })
 
     openAiVoiceSession.on('audio_interrupted', (context, agent) => {
@@ -130,21 +129,19 @@ export class VoiceSessionManager {
     return session
   }
   
-  getUserSession(clientId: string): RealtimeSession {
-    const session = sessions.get(clientId)
-    if (!session) {
-      throw new Error('OpenAI Voice Session not found')
-    }
-    return session
+  getUserSession(clientId: string): RealtimeSession | undefined {
+    return sessions.get(clientId)
   }
   
   closeUserSession(clientId: string): void {
     try {
       const session = sessions.get(clientId)
       if (session) {
+        logger.info({ clientId }, 'Closing OpenAI Voice Session')
         session.close()
       }
       sessions.delete(clientId)
+      logger.info({ sessions }, 'All sessions list')
     } catch (error) {
       throw error
     }

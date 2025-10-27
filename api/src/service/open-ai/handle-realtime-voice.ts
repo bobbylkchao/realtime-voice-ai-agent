@@ -42,11 +42,9 @@ export const handleRealtimeVoice = async (
       }
       break
     case 'USER_AUDIO_CHUNK':
-      try {
-        const session = voiceSessionManager.getUserSession(socket.id)
+      const session = voiceSessionManager.getUserSession(socket.id)
+      if (session) {
         session.sendAudio(eventData)
-      } catch (error) {
-        logger.error({ clientId: socket.id }, '❌ Voice Session not found')
       }
       break
     default:

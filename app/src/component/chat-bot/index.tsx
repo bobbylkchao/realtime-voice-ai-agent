@@ -52,8 +52,6 @@ const EndCallButton = React.memo(({
 })
 
 const ChatBot = (): React.ReactElement => {
-  // TODO: Deprecated, use isSessionStarted
-  const [isPhoneStart, setIsPhoneStart] = useState<boolean>(false)
   const [websocketTunnel, setWebsocketTunnel] = useState<WebsocketCallbackArgs>({
     status: 'CONNECTING',
     responseData: undefined,
@@ -62,6 +60,9 @@ const ChatBot = (): React.ReactElement => {
   const chatEndRef = useRef<HTMLDivElement>(null)
   const audioQueueRef = useRef<ArrayBuffer[]>([])
   const isPlayingRef = useRef<boolean>(false)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const audioBufferQueueRef = useRef<AudioBuffer[]>([])
+  const isProcessingQueueRef = useRef<boolean>(false)
 
   useEffect(() => {
     initWebSocketConnection(({ status, responseData }) => {
@@ -77,7 +78,7 @@ const ChatBot = (): React.ReactElement => {
   }, [])
 
   const handleVoiceStart = useCallback(async () => {
-    if (isPhoneStart) return
+    if (isSessionStartedRef.current) return
 
     WebsocketClient?.emit('message', {
       event: 'SESSION_START',
@@ -92,28 +93,29 @@ const ChatBot = (): React.ReactElement => {
         data: audioChunk,
       })
     })
-
-    setIsPhoneStart(true)
-  }, [isPhoneStart])
+  }, [])
 
   const handleVoiceEnd = useCallback(() => {
     WebsocketClient?.emit('message', {
       event: 'SESSION_END',
     })
-    setIsPhoneStart(false)
     isSessionStartedRef.current = false
     terminateAudioStreaming()
     
     // Clear audio queue when session ends
     audioQueueRef.current = []
     isPlayingRef.current = false
-    console.log('Cleared audio queue')
+    
+    // Close AudioContext to free resources
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
   }, [])
 
   const playAudioChunk = useCallback(async (audioChunk: ArrayBuffer) => {
     // Add to queue
     audioQueueRef.current.push(audioChunk)
-    console.log('Added audio chunk to queue. Queue length:', audioQueueRef.current.length)
     
     // Start processing queue if not already playing
     if (!isPlayingRef.current) {
@@ -127,56 +129,99 @@ const ChatBot = (): React.ReactElement => {
     }
 
     isPlayingRef.current = true
-    const audioChunk = audioQueueRef.current.shift()
     
-    if (!audioChunk) {
+    // Process all available chunks at once to create seamless audio
+    const chunksToProcess: ArrayBuffer[] = []
+    while (audioQueueRef.current.length > 0) {
+      const chunk = audioQueueRef.current.shift()
+      if (chunk) {
+        chunksToProcess.push(chunk)
+      }
+    }
+    
+    if (chunksToProcess.length === 0) {
       isPlayingRef.current = false
       return
     }
 
     try {
-      console.log('Playing audio chunk:', {
-        size: audioChunk.byteLength,
-        queueLength: audioQueueRef.current.length,
-      })
-      
-      // Create an AudioContext
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-      
-      // Convert ArrayBuffer to Int16Array (PCM16)
-      const int16Array = new Int16Array(audioChunk)
-      
-      // Convert Int16Array to Float32Array
-      const float32Array = new Float32Array(int16Array.length)
-      for (let i = 0; i < int16Array.length; i++) {
-        float32Array[i] = int16Array[i] / 0x7FFF // Normalize to -1.0 to 1.0
+      // Get or create AudioContext (reuse existing one)
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
       }
       
-      // Create an AudioBuffer with the correct sample rate (OpenAI Realtime API uses 24kHz)
-      const audioBufferObj = audioContext.createBuffer(1, float32Array.length, 24000)
-      audioBufferObj.copyToChannel(float32Array, 0) // Copy PCM data to the buffer
+      // Resume context if suspended
+      if (audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume()
+      }
+      
+      const audioContext = audioContextRef.current
+      
+      // Concatenate all chunks into one continuous audio buffer
+      const allInt16Arrays: Int16Array[] = []
+      let totalSamples = 0
+      
+      for (const chunk of chunksToProcess) {
+        const int16Array = new Int16Array(chunk)
+        allInt16Arrays.push(int16Array)
+        totalSamples += int16Array.length
+      }
+      
+      // Create combined float32 array
+      const combinedFloat32Array = new Float32Array(totalSamples)
+      let offset = 0
+      for (const int16Array of allInt16Arrays) {
+        for (let i = 0; i < int16Array.length; i++) {
+          combinedFloat32Array[offset + i] = int16Array[i] / 32768.0
+        }
+        offset += int16Array.length
+      }
+      
+      // Create buffer with AudioContext's actual sample rate to avoid resampling issues
+      const targetSampleRate = audioContext.sampleRate
+      const resampleRatio = targetSampleRate / 24000
+      const resampledLength = Math.floor(combinedFloat32Array.length * resampleRatio)
+      
+      // Simple linear interpolation resampling
+      const resampledArray = new Float32Array(resampledLength)
+      for (let i = 0; i < resampledLength; i++) {
+        const originalIndex = i / resampleRatio
+        const index1 = Math.floor(originalIndex)
+        const index2 = Math.min(index1 + 1, combinedFloat32Array.length - 1)
+        const fraction = originalIndex - index1
+        
+        if (index1 >= combinedFloat32Array.length) {
+          resampledArray[i] = 0
+        } else if (index1 === index2 || fraction === 0) {
+          resampledArray[i] = combinedFloat32Array[index1]
+        } else {
+          resampledArray[i] = combinedFloat32Array[index1] * (1 - fraction) + combinedFloat32Array[index2] * fraction
+        }
+      }
+      
+      const audioBufferObj = audioContext.createBuffer(1, resampledArray.length, targetSampleRate)
+      audioBufferObj.copyToChannel(resampledArray, 0)
       
       // Create a BufferSource to play the audio
       const source = audioContext.createBufferSource()
       source.buffer = audioBufferObj
+      
+      // Connect directly to destination for seamless playback
       source.connect(audioContext.destination)
       
-      // When this chunk finishes playing, process the next one
+      // When this combined audio finishes playing, process the next batch
       source.onended = () => {
-        console.log('Audio chunk finished playing')
         isPlayingRef.current = false
-        // Process next chunk in queue
-        setTimeout(() => processAudioQueue(), 10) // Small delay to prevent overlap
+        // Process next batch of chunks
+        processAudioQueue()
       }
       
       source.start(0) // Start playback
-      console.log('Started playing audio chunk')
-      
     } catch (error) {
       console.error('Error playing audio chunk:', error)
       isPlayingRef.current = false
-      // Try next chunk even if this one failed
-      setTimeout(() => processAudioQueue(), 10)
+      // Try next chunk immediately even on error
+      processAudioQueue()
     }
   }, [])
 
@@ -185,10 +230,6 @@ const ChatBot = (): React.ReactElement => {
       websocketTunnel.status === 'CONNECTED' &&
       websocketTunnel?.responseData?.event === 'USER_AUDIO_CHUNK'
     ) {
-      console.log('Received audio chunk')
-      console.log('WebSocket response data:', websocketTunnel.responseData)
-      console.log('Data type:', typeof websocketTunnel.responseData.data)
-      console.log('Data constructor:', websocketTunnel.responseData.data?.constructor?.name)
       
       const audioChunkFromServer = websocketTunnel.responseData.data as ArrayBuffer
       playAudioChunk(audioChunkFromServer)
@@ -211,7 +252,7 @@ const ChatBot = (): React.ReactElement => {
       </ChatDisplay>
       <ChatInputContainer>
         {
-          isPhoneStart
+          isSessionStartedRef.current
             ? <EndCallButton 
                 onEnd={handleVoiceEnd}
               />
