@@ -20,7 +20,12 @@ const createOpenAiVoiceAgentAndSession = async (
     const openAiVoiceAgent = new RealtimeAgent({
       name: 'Realtime Voice Agent',
       voice: 'cedar',
-      instructions: 'You are a helpful assistant that can answer questions and help with tasks.',
+      instructions: `
+        1. You are a helpful AI assistant that can help customer make trip bookings.
+        2. Your name is Bobby.
+        3. Do not answer any questions that are not related to trip bookings or travel related questions.
+        4. Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+      `,
     })
   
     /**
@@ -39,13 +44,13 @@ const createOpenAiVoiceAgentAndSession = async (
               type: 'server_vad',
               create_response: true,
               interrupt_response: true,
+              silence_duration_ms: 1500,
             },
             format: {
               rate: 24000,
               type: 'audio/pcm',
             },
             transcription: {
-              language: 'en',
               model: 'gpt-4o-mini-transcribe',
             },
           },
@@ -54,7 +59,7 @@ const createOpenAiVoiceAgentAndSession = async (
               rate: 24000,
               type: 'audio/pcm',
             },
-            speed: 1.1,
+            speed: 1.0,
             voice: 'cedar',
           },
         },
@@ -65,25 +70,33 @@ const createOpenAiVoiceAgentAndSession = async (
       apiKey: openAiApiKey,
     })
 
-    // Set up comprehensive event listeners for debugging
-    /*openAiVoiceSession.on('transport_event', (event) => {
-      // Handle audio data from OpenAI Voice Agent
-      if (event.type === 'response.output_audio.delta' && event.delta) {
-        logger.info({ 
-          eventType: event.type, 
-          deltaLength: event.delta.length, 
-          clientId 
-        }, '🔊 Received audio delta from OpenAI Voice Agent.')
-        
-        // TODO: Forward audio to connected WebSocket clients
-        // The audio data is in event.delta as base64 encoded PCM data
-        // This will be handled in the WebSocket server
+    openAiVoiceSession.on('transport_event', (event) => {
+      // User's audio transcript
+      if (
+        event.type === 'conversation.item.input_audio_transcription.completed' &&
+        event.transcript
+      ) {
+        socket.emit('message', {
+          event: 'USER_AUDIO_TRANSCRIPT',
+          data: event.transcript,
+        })
       }
-    })*/
+
+      // Agent's audio transcript
+      if (
+        event.type === 'response.output_audio_transcript.done' &&
+        event.transcript
+      ) {
+        socket.emit('message', {
+          event: 'ASSISTANT_AUDIO_TRANSCRIPT',
+          data: event.transcript,
+        })
+      }
+    })
 
     openAiVoiceSession.on('audio', (event: TransportLayerAudio) => {
       socket.emit('message', {
-        event: 'USER_AUDIO_CHUNK',
+        event: 'ASSISTANT_AUDIO_CHUNK',
         data: event.data,
       })
     })

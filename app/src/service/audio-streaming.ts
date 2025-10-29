@@ -3,7 +3,7 @@ let rafId = 0
 let mediaStream: MediaStream | null = null
 
 export const initAudioStreaming = async (
-  callback: (audioChunk: ArrayBuffer) => void,
+  callback: (_audioChunk: ArrayBuffer) => void,
   onUserInterruption?: () => void,
 ): Promise<void> => {
   if (audioContext) return
@@ -72,9 +72,8 @@ export const initAudioStreaming = async (
 
       // Always stream audio chunks (for backend processing)
       const pcm16Buffer = float32ToPCM16(dataArray.slice())
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       callback(pcm16Buffer)
-      
       rafId = requestAnimationFrame(streamAudio)
     }
 

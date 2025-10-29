@@ -222,7 +222,7 @@ try {
 useEffect(() => {
   if (
     websocketTunnel.status === 'CONNECTED' &&
-    websocketTunnel?.responseData?.event === 'USER_AUDIO_CHUNK'
+    websocketTunnel?.responseData?.event === 'ASSISTANT_AUDIO_CHUNK'
   ) {
     const audioChunkFromServer = websocketTunnel.responseData.data as ArrayBuffer
     playAudioChunk(audioChunkFromServer)

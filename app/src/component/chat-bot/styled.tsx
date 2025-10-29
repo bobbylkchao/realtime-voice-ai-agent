@@ -132,6 +132,11 @@ export const ChatInputContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid ${themeConfig.border.primary};
+  border-bottom: 0;
+  border-left: 0;
+  border-right: 0;
+  padding-top: 10px;
 `
 
 export const SubmitButton = styled(Button)`

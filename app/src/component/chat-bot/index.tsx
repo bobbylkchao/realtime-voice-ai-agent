@@ -14,6 +14,65 @@ import { initAudioStreaming, terminateAudioStreaming } from '../../service/audio
 import type { WebsocketCallbackArgs } from '../../service/websocket'
 import { initWebSocketConnection, WebsocketClient } from '../../service/websocket'
 
+const ChatHistoryItem = ({
+  key,
+  role,
+  content,
+  timestamp,
+}: {
+  key: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: number
+}): React.ReactElement => {
+  if (role === 'user') {
+    return (
+      <div key={key} style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        marginBottom: 10,
+      }}>
+        <div style={{
+          display: 'flex',
+          backgroundColor: '#6a6eee',
+          color: '#ffffff',
+          padding: 10,
+          minWidth: '10%',
+          maxWidth: '70%',
+          borderRadius: 10,
+          marginBottom: 5,
+        }}>{content}</div>
+        <div style={{
+          fontSize: '12px',
+          color: 'gray',
+        }}>{new Date(timestamp).toLocaleString()}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div key={key} style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+      marginBottom: 10,
+    }}>
+      <div style={{ display: 'flex', flexDirection: 'row' }}>
+        <div style={{
+          backgroundColor: '#ededed',
+          borderRadius: 10,
+          padding: 10,
+        }}>{content}</div>
+      </div>
+      <div style={{
+        fontSize: '12px',
+        color: 'gray',
+      }}>{new Date(timestamp).toLocaleString()}</div>
+    </div>
+  )
+}
+
 const endCallButtonContainerStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -53,6 +112,12 @@ const EndCallButton = React.memo(({
 })
 EndCallButton.displayName = 'EndCallButton'
 
+interface ChatHistoryItem {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: number
+}
+
 const ChatBot = (): React.ReactElement => {
   const [websocketTunnel, setWebsocketTunnel] = useState<WebsocketCallbackArgs>({
     status: 'CONNECTING',
@@ -64,6 +129,7 @@ const ChatBot = (): React.ReactElement => {
   const isPlayingRef = useRef<boolean>(false)
   const audioContextRef = useRef<AudioContext | null>(null)
   const currentAudioSourceRef = useRef<AudioBufferSourceNode | null>(null)
+  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([])
 
   useEffect(() => {
     initWebSocketConnection(({ status, responseData }) => {
@@ -74,6 +140,28 @@ const ChatBot = (): React.ReactElement => {
 
       if (responseData?.event === 'SESSION_START_SUCCESS') {
         isSessionStartedRef.current = true
+      }
+
+      if (responseData?.event === 'USER_AUDIO_TRANSCRIPT') {
+        const transcript = responseData.data as string
+        if (transcript) {
+          setChatHistory((prev) => [...prev, {
+            role: 'user',
+            content: transcript,
+            timestamp: Date.now(),
+          }])
+        }
+      }
+
+      if (responseData?.event === 'ASSISTANT_AUDIO_TRANSCRIPT') {
+        const transcript = responseData.data as string
+        if (transcript) {
+          setChatHistory((prev) => [...prev, {
+            role: 'assistant',
+            content: transcript,
+            timestamp: Date.now(),
+          }])
+        }
       }
     })
   }, [])
@@ -298,13 +386,19 @@ const ChatBot = (): React.ReactElement => {
   useEffect(() => {
     if (
       websocketTunnel.status === 'CONNECTED' &&
-      websocketTunnel?.responseData?.event === 'USER_AUDIO_CHUNK'
+      websocketTunnel?.responseData?.event === 'ASSISTANT_AUDIO_CHUNK'
     ) {
       
       const audioChunkFromServer = websocketTunnel.responseData.data as ArrayBuffer
       playAudioChunk(audioChunkFromServer)
     }
   }, [websocketTunnel])
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [chatHistory])
 
   return (
     <ChatContainer>
@@ -318,7 +412,23 @@ const ChatBot = (): React.ReactElement => {
         Connection status: { websocketTunnel.status }
       </div>
       <ChatDisplay>
-        <div id="chatbot-container-bottom" style={{height: 20}} ref={chatEndRef} />
+        {
+          chatHistory.length > 0 && (
+            <div>
+              {
+                chatHistory.map((item) => (
+                  <ChatHistoryItem
+                    key={item.timestamp.toString()}
+                    role={item.role}
+                    content={item.content}
+                    timestamp={item.timestamp}
+                  />
+                ))
+              }
+            </div>
+          )
+        }
+        <div id="chatbot-container-bottom" style={{height: 50}} ref={chatEndRef} />
       </ChatDisplay>
       <ChatInputContainer>
         {

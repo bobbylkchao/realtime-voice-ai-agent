@@ -8,8 +8,7 @@ interface IQuickActions {
 
 interface IQuickActionsProps {
   data: string
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onSend: (value: string) => Promise<string | undefined>
+  onSend: (_value: string) => Promise<string | undefined>
 }
 
 const QuickActions = ({ data, onSend }: IQuickActionsProps): React.ReactElement => {

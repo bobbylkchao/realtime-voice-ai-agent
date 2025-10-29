@@ -7,7 +7,9 @@ export type WebsocketClientEventType =
   'DISCONNECTED' | 'CONNECTED' | 'CONNECTING' | 'ERROR'
 
 export type WebsocketServerEventType =
-  'SESSION_START_ERROR' | 'SESSION_START_SUCCESS' | 'SESSION_END_SUCCESS' | 'SESSION_END_ERROR' | 'USER_AUDIO_CHUNK'
+  'SESSION_START_ERROR' | 'SESSION_START_SUCCESS' | 'SESSION_END_SUCCESS' |
+  'SESSION_END_ERROR' | 'USER_AUDIO_CHUNK' | 'USER_AUDIO_TRANSCRIPT' |
+  'ASSISTANT_AUDIO_CHUNK' | 'ASSISTANT_AUDIO_TRANSCRIPT'
 
 export interface WebsocketCallbackArgs {
   status: WebsocketClientEventType
@@ -18,13 +20,13 @@ export interface WebsocketCallbackArgs {
 }
 
 export const initWebSocketConnection = (
-  callback: (args: WebsocketCallbackArgs) => void,
+  callback: (_args: WebsocketCallbackArgs) => void,
 ): typeof WebsocketClient => {
   try {
     if (WebsocketClient) return WebsocketClient
 
-    WebsocketClient = io(process.env.REACT_APP_API_CHAT_SERVER_URL, {
-      path: process.env.REACT_APP_API_CHAT_SERVER_REALTIME_PATH,
+    WebsocketClient = io(import.meta.env.VITE_API_CHAT_SERVER_URL, {
+      path: import.meta.env.VITE_APP_API_CHAT_SERVER_REALTIME_PATH,
       transports: ['websocket'],
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -53,7 +55,7 @@ export const initWebSocketConnection = (
     })
 
     WebsocketClient.on('message', (data) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       callback({
         status: 'CONNECTED',
         responseData: data,

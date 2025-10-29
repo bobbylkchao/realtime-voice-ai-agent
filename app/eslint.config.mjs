@@ -16,13 +16,13 @@ export default [
       'react/react-in-jsx-scope': 'off',
       'react/no-unescaped-entities': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
-      'no-unused-vars': 'warn',
+      'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': [
-      'error', {
-        'varsIgnorePattern': '^_',
-        'argsIgnorePattern': '^_'
-      },
-    ],
+        'error', {
+          'varsIgnorePattern': '^_',
+          'argsIgnorePattern': '^_'
+        }
+      ],
     },
   },
 ]
