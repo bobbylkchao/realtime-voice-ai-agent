@@ -15,7 +15,7 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
   })
 
   wsServer.on('connection', (socket) => {
-    logger.info(`Websocket client connected: ${socket.id}`)
+    logger.info(`[Websocket] Client connected: ${socket.id}`)
 
     socket.on('message', (message: RealtimeVoiceMessage) => {
       const eventName = message?.event as RealtimeVoiceEventName
@@ -23,10 +23,14 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
       handleRealtimeVoice(eventName, eventData, socket)
     })
   
-    socket.on('disconnect', (reason: string) => {
-      logger.info(`Websocket client disconnected: ${socket.id}, reason: ${reason}`)
+    socket.on('disconnect', async (reason: string) => {
+      logger.info(`[Websocket] Client disconnected: ${socket.id}, reason: ${reason}`)
       const sessionManager = new VoiceSessionManager()
-      sessionManager.closeUserSession(socket.id)
+      try {
+        await sessionManager.closeUserSession(socket.id)
+      } catch (error) {
+        logger.error({ error, clientId: socket.id }, '[Websocket] Error closing user session')
+      }
     })
   })
 }

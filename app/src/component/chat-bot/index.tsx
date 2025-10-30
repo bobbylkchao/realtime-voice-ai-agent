@@ -32,6 +32,7 @@ const ChatHistoryItem = ({
         flexDirection: 'column',
         alignItems: 'flex-end',
         marginBottom: 10,
+        paddingLeft: 30,
       }}>
         <div style={{
           display: 'flex',
@@ -42,10 +43,11 @@ const ChatHistoryItem = ({
           maxWidth: '70%',
           borderRadius: 10,
           marginBottom: 5,
+          lineHeight: 1.5,
         }}>{content}</div>
         <div style={{
           fontSize: '12px',
-          color: 'gray',
+          color: '#c3c3c3',
         }}>{new Date(timestamp).toLocaleString()}</div>
       </div>
     )
@@ -57,17 +59,20 @@ const ChatHistoryItem = ({
       flexDirection: 'column',
       alignItems: 'flex-start',
       marginBottom: 10,
+      paddingRight: 30,
     }}>
       <div style={{ display: 'flex', flexDirection: 'row' }}>
         <div style={{
           backgroundColor: '#ededed',
           borderRadius: 10,
           padding: 10,
+          marginBottom: 5,
+          lineHeight: 1.5,
         }}>{content}</div>
       </div>
       <div style={{
         fontSize: '12px',
-        color: 'gray',
+        color: '#c3c3c3',
       }}>{new Date(timestamp).toLocaleString()}</div>
     </div>
   )

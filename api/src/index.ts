@@ -3,6 +3,7 @@ import { config } from 'dotenv'
 import { createServer } from 'http'
 import logger from './misc/logger'
 import { initWebSocketServer } from './service/websocket'
+import { initMcpServer } from './service/mcp-server'
 
 config()
 
@@ -12,15 +13,17 @@ const startServices = async () => {
   app.use(express.json())
   const httpServer = createServer(app)
   initWebSocketServer(httpServer)
+  initMcpServer(app)
 
   httpServer.listen(PORT, () => {
-    logger.info(`HTTP Server ready at: http://localhost:${PORT}`)
-    logger.info(`Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`)
+    logger.info(`[Server] HTTP Server ready at: http://localhost:${PORT}`)
+    logger.info(`[Server] MCP Server ready at: http://localhost:${PORT}/mcp`)
+    logger.info(`[Server] Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`)
   })
 }
 
 try {
   startServices()
 } catch (err) {
-  logger.error({ err }, 'Application start failed due to error')
+  logger.error({ err }, '[Server] Application start failed due to error')
 }
