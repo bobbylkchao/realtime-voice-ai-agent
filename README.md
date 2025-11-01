@@ -33,6 +33,7 @@ Watch the demo video to see the following features in action:
 5. **Tool Function Calls**: External API integration (success and failure scenarios)
 
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/ayLRnQDA7RE/0.jpg)](https://www.youtube.com/watch?v=ayLRnQDA7RE)
+
 [https://www.youtube.com/watch?v=ayLRnQDA7RE](https://www.youtube.com/watch?v=ayLRnQDA7RE)
 
 ## Tech Stack
