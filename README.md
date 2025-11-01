@@ -32,8 +32,7 @@ Watch the demo video to see the following features in action:
 4. **User Interruption**: Interrupting AI output in real-time
 5. **Tool Function Calls**: External API integration (success and failure scenarios)
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/ayLRnQDA7RE?si=jdJGdQINzfZJRPVY" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/ayLRnQDA7RE/0.jpg)](https://www.youtube.com/watch?v=ayLRnQDA7RE)
 
 ## Tech Stack
 
