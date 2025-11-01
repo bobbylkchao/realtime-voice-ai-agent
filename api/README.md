@@ -24,7 +24,3 @@ OPENAI_VOICE_MODEL=gpt-realtime
 ```
 npm run dev
 ```
-
-## Config your own MCP server
-
-Put code in `service/mcp-server`
