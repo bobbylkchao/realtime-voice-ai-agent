@@ -6,7 +6,7 @@ import { VoiceSessionManager } from '.'
 export const handleRealtimeVoice = async (
   eventName: RealtimeVoiceEventName,
   eventData: ArrayBuffer,
-  socket: Socket,
+  socket: Socket
 ): Promise<void> => {
   const voiceSessionManager = new VoiceSessionManager()
 
@@ -19,7 +19,10 @@ export const handleRealtimeVoice = async (
           data: null,
         })
       } catch (error) {
-        logger.error({ error, clientId: socket.id }, '❌ Error occurred while creating Voice Session')
+        logger.error(
+          { error, clientId: socket.id },
+          '[Realtime Voice] Error occurred while creating Voice Session'
+        )
         socket.emit('message', {
           event: 'SESSION_START_ERROR',
           data: null,
@@ -34,19 +37,23 @@ export const handleRealtimeVoice = async (
           data: null,
         })
       } catch (error) {
-        logger.error({ error, clientId: socket.id }, '❌ Error occurred while closing Voice Session')
+        logger.error(
+          { error, clientId: socket.id },
+          '[Realtime Voice] Error occurred while closing Voice Session'
+        )
         socket.emit('message', {
           event: 'SESSION_END_ERROR',
           data: null,
         })
       }
       break
-    case 'USER_AUDIO_CHUNK':
+    case 'USER_AUDIO_CHUNK': {
       const session = voiceSessionManager.getUserSession(socket.id)
       if (session) {
         session.sendAudio(eventData)
       }
       break
+    }
     default:
       break
   }

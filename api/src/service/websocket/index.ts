@@ -22,14 +22,19 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
       const eventData = message?.data as ArrayBuffer
       handleRealtimeVoice(eventName, eventData, socket)
     })
-  
+
     socket.on('disconnect', async (reason: string) => {
-      logger.info(`[Websocket] Client disconnected: ${socket.id}, reason: ${reason}`)
+      logger.info(
+        `[Websocket] Client disconnected: ${socket.id}, reason: ${reason}`
+      )
       const sessionManager = new VoiceSessionManager()
       try {
         await sessionManager.closeUserSession(socket.id)
       } catch (error) {
-        logger.error({ error, clientId: socket.id }, '[Websocket] Error closing user session')
+        logger.error(
+          { error, clientId: socket.id },
+          '[Websocket] Error closing user session'
+        )
       }
     })
   })
