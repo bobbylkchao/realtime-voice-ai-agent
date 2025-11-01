@@ -32,7 +32,7 @@ Watch the demo video to see the following features in action:
 4. **User Interruption**: Interrupting AI output in real-time
 5. **Tool Function Calls**: External API integration (success and failure scenarios)
 
-<div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/1132822138?h=a417b1dc26&amp;badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share" referrerpolicy="strict-origin-when-cross-origin" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="Realtime Voice AI Agent - Demo"></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
+<video src="https://raw.githubusercontent.com/bobbylkchao/assets/master/realtime-voice-ai-agent-demo.mp4" width="800" controls></video>
 
 ## Tech Stack
 
