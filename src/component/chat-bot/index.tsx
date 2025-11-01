@@ -414,7 +414,7 @@ const ChatBot = (): React.ReactElement => {
         justifyContent: 'center',
         alignItems: 'center',
       }}>
-        Connection status: { websocketTunnel.status }
+        Backend connection status: { websocketTunnel.status }
       </div>
       <ChatDisplay>
         {

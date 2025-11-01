@@ -12,5 +12,5 @@ export const HeaderH2 = styled.h2<{ color?: string }>`
   font-size: ${themeConfig.textSize.large};
   margin: 10px 0;
   display: flex;
-  font-weight: normal;
+  font-weight: bold;
 `

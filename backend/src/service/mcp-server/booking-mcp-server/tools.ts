@@ -69,12 +69,15 @@ export const registerTools = (mcpServer: McpServer) => {
       'get-destination-weather',
       {
         title: 'Get Destination City Weather',
-        description:
-          'Get weather data for a destination city for the given date',
+        description: `
+        1. Get weather data for a destination city.
+        2. Today date is the current date.
+        3. Date format is YYYY-MM-DD.
+        `,
         inputSchema: {
           city: z.string(),
           country: z.string(),
-          date: z.string(),
+          todayDate: z.string(),
         },
         outputSchema: {
           maxTemperature: z.number(),
@@ -82,7 +85,7 @@ export const registerTools = (mcpServer: McpServer) => {
           precipitation: z.number(),
         },
       },
-      async ({ city, country, date }) => {
+      async ({ city, country, todayDate }) => {
         logger.info(
           { city, country },
           '[Booking MCP Server/Tool Call] Getting weather for destination city'
@@ -94,9 +97,11 @@ export const registerTools = (mcpServer: McpServer) => {
             `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(destination)}`
           )
           const geoData = await geo.json()
-          const { latitude = 0, longitude = 0 } = geoData?.results?.[0] || {}
+          const { latitude, longitude } = geoData?.results?.[0] || {}
 
-          const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${date}&end_date=${date}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`
+          // Demo purpose
+          const url =
+            `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${todayDate}&end_date=${todayDate}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`
           const res = await fetch(url)
           const data = await res.json()
 

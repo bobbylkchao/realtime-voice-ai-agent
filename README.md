@@ -22,6 +22,18 @@ This starter kit is designed to help developers quickly get started with OpenAI'
 - **Multiple Sessions**: Concurrent handling of multiple user sessions with proper isolation
 - **Voice Activity Detection**: Server-side VAD for natural conversation flow
 
+## 🎬 Demo Video
+
+Watch the demo video to see the following features in action:
+
+1. **Backend VAD Detection**: Server-side voice activity detection
+2. **Multi-Agents & Agent-to-Agent (A2A)**: Agent handoff and communication
+3. **MCP Server Integration**: Tool discovery and function calling
+4. **User Interruption**: Interrupting AI output in real-time
+5. **Tool Function Calls**: External API integration (success and failure scenarios)
+
+<div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/1132822138?h=a417b1dc26&amp;badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share" referrerpolicy="strict-origin-when-cross-origin" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="Realtime Voice AI Agent - Demo"></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
+
 ## Tech Stack
 
 ### Frontend

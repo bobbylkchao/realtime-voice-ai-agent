@@ -80,7 +80,9 @@ const createOpenAiVoiceAgentAndSession = async (
                   type: 'audio/pcm',
                 },
                 transcription: {
-                  model: 'gpt-4o-mini-transcribe',
+                  language: 'en',
+                  model: 'gpt-4o-transcribe',
+                  prompt: 'This is the conversation between a user and an AI trip booking assistant. The language of the audio is English.',
                 },
               },
               output: {
