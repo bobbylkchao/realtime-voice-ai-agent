@@ -30,13 +30,21 @@ echo "📥 Checking out branch: $BRANCH"
 git checkout "$BRANCH"
 git reset --hard "origin/$BRANCH"
 
+# Install frontend dependencies
+echo "🔧 Installing dependencies..."
+npm ci
+
 # Build frontend
 echo "🔨 Building frontend..."
 npm run build
 
+# Install backend dependencies
+echo "🔧 Installing backend dependencies..."
+cd backend
+npm ci
+
 # Build backend
 echo "🔨 Building backend..."
-cd backend
 npm run build
 cd ..
 
