@@ -29,6 +29,7 @@ git clean -fd
 echo "📥 Checking out branch: $BRANCH"
 git checkout "$BRANCH"
 git reset --hard "origin/$BRANCH"
+git pull
 
 # Install frontend dependencies
 echo "🔧 Installing dependencies..."
