@@ -49,5 +49,3 @@ echo "🔨 Building backend..."
 npm run build
 cd ..
 
-echo "✅ Deployment completed successfully!"
-
