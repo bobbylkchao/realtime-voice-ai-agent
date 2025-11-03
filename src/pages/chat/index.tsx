@@ -1,6 +1,5 @@
 import React from 'react'
 import { Typography } from 'antd'
-import { GithubOutlined } from '@ant-design/icons'
 import { BotContainer } from './styled'
 import { HeaderH2 } from '../../component/header/styled'
 import ChatBot from '../../component/chat-bot'
@@ -14,7 +13,7 @@ const ChatPage = (): React.ReactElement => {
         href="https://github.com/bobbylkchao/realtime-voice-ai-agent"
         target="_blank"
       >
-        <GithubOutlined /> ⭐ Star us on GitHub
+      ⭐ Star us on GitHub
       </Link>
       <ChatBot />
     </BotContainer>
