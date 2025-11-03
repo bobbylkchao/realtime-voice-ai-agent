@@ -13,7 +13,7 @@ const ChatPage = (): React.ReactElement => {
         href="https://github.com/bobbylkchao/realtime-voice-ai-agent"
         target="_blank"
       >
-      ⭐ Star us on GitHub
+      ⭐ Code on GitHub
       </Link>
       <ChatBot />
     </BotContainer>

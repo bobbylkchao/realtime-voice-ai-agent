@@ -7,6 +7,8 @@ import { handleRealtimeVoice, VoiceSessionManager } from '../open-ai'
 import { frontDeskAgent } from '../open-ai/agents/front-desk-agent'
 import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from './types'
 import logger from '../../misc/logger'
+import { MCPServerStreamableHttp } from '@openai/agents'
+import { mcpServerList } from '../mcp-server'
 
 export const initWebSocketServer = (httpServer: HttpServer) => {
   const wsServer = new Server(httpServer, {
@@ -71,6 +73,7 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
       requestUrl: request.url,
       requestHeaders: request.headers,
       pathName,
+      request,
     }, '[Twilio Media Stream] Upgrade request received')
 
     if (pathName === '/media-stream') {
@@ -102,8 +105,35 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
       twilioWebSocket: ws,
     })
 
-    // TODO: Create simple agent for MVP
-    const agent = frontDeskAgent([])
+    // TODO: to ensure speed, maybe add MCP servers later?
+    const mcpServers: MCPServerStreamableHttp[] = []
+    for (const mcpServerConfig of mcpServerList) {
+      try {
+        const mcpServer = new MCPServerStreamableHttp({
+          url: mcpServerConfig.url,
+          name: mcpServerConfig.name,
+        })
+        await mcpServer.connect()
+        mcpServers.push(mcpServer)
+        logger.info(
+          {
+            callId,
+            mcpServerName: mcpServerConfig.name,
+          },
+          '[Twilio Media Stream] MCP server connected successfully'
+        )
+      } catch (mcpError) {
+        logger.warn(
+          {
+            mcpError,
+            callId,
+            mcpServerName: mcpServerConfig.name,
+          },
+          '[Twilio Media Stream] Failed to connect to MCP server'
+        )
+      }
+    }
+    const agent = frontDeskAgent(mcpServers)
 
     // Create session immediately
     const session = new RealtimeSession(agent, {
@@ -111,8 +141,16 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
       model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
       config: {
         audio: {
+          input: {
+            turnDetection: {
+              type: 'server_vad',
+              create_response: true,
+              interrupt_response: true,
+              silence_duration_ms: 500,
+            },
+          },
           output: {
-            voice: 'verse',
+            speed: 1.2,
           },
         },
       },
