@@ -99,7 +99,7 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
   
       // TODO: to ensure speed, maybe add MCP servers later?
       const mcpServers: MCPServerStreamableHttp[] = []
-      for (const mcpServerConfig of mcpServerList) {
+      /*for (const mcpServerConfig of mcpServerList) {
         try {
           const mcpServer = new MCPServerStreamableHttp({
             url: mcpServerConfig.url,
@@ -124,7 +124,7 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
             '[Twilio Media Stream] Failed to connect to MCP server'
           )
         }
-      }
+      }*/
       const agent = frontDeskAgent(mcpServers)
   
       // Create session immediately
