@@ -4,7 +4,7 @@ let mediaStream: MediaStream | null = null
 
 export const initAudioStreaming = async (
   callback: (_audioChunk: ArrayBuffer) => void,
-  onUserInterruption?: () => void,
+  onUserInterruption?: () => void
 ): Promise<void> => {
   if (audioContext) return
   try {
@@ -25,14 +25,14 @@ export const initAudioStreaming = async (
     const float32ToPCM16 = (float32Array: Float32Array): ArrayBuffer => {
       const buffer = new ArrayBuffer(float32Array.length * 2) // 2 bytes per 16-bit sample
       const view = new DataView(buffer)
-      
+
       for (let i = 0; i < float32Array.length; i++) {
         // Convert from [-1, 1] range to [-32768, 32767] range
         const sample = Math.max(-1, Math.min(1, float32Array[i]))
         const pcm16 = Math.round(sample * 32767)
         view.setInt16(i * 2, pcm16, true) // little-endian
       }
-      
+
       return buffer
     }
 
@@ -40,18 +40,18 @@ export const initAudioStreaming = async (
     let silenceFrames = 0
     const silenceThreshold = 10 // frames of silence before considering user stopped speaking
     const volumeThreshold = 0.01 // lower threshold for more sensitive detection
-    
+
     const streamAudio = () => {
       if (!analyser) return
       analyser.getFloatTimeDomainData(dataArray)
-    
+
       // Volume check logic for user interruption detection
       let sum = 0
       for (let i = 0; i < dataArray.length; i++) {
         sum += dataArray[i] * dataArray[i]
       }
       const rms = Math.sqrt(sum / dataArray.length)
-      
+
       // Detect user speaking for interruption
       if (rms > volumeThreshold) {
         if (!isUserSpeaking) {
@@ -72,7 +72,7 @@ export const initAudioStreaming = async (
 
       // Always stream audio chunks (for backend processing)
       const pcm16Buffer = float32ToPCM16(dataArray.slice())
-       
+
       callback(pcm16Buffer)
       rafId = requestAnimationFrame(streamAudio)
     }

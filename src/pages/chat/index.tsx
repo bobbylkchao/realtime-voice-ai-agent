@@ -11,9 +11,11 @@ const ChatPage = (): React.ReactElement => {
     <BotContainer>
       <HeaderH2>Realtime Voice AI Agent (Demo)</HeaderH2>
       <Link
-        href='https://github.com/bobbylkchao/realtime-voice-ai-agent'
-        target='_blank'
-      ><GithubOutlined /> Check on GitHub</Link>
+        href="https://github.com/bobbylkchao/realtime-voice-ai-agent"
+        target="_blank"
+      >
+        <GithubOutlined /> Check on GitHub
+      </Link>
       <ChatBot />
     </BotContainer>
   )

@@ -1,6 +1,6 @@
 # Realtime Voice AI Agent Starter Kit
 
-A starter kit and template for building realtime voice AI agents using OpenAI's Realtime API. This project provides a production-ready foundation with the latest OpenAI SDK capabilities, enabling developers to quickly start building their own voice AI applications.
+A starter kit and template for building realtime voice AI agents using OpenAI's Realtime API. This project provides a production-ready foundation with the latest OpenAI SDK capabilities, including built-in support for phone-based voice interactions via Twilio, enabling developers to quickly start building their own voice AI applications for both web and phone channels.
 
 ## 🎯 Purpose
 
@@ -9,6 +9,7 @@ This starter kit is designed to help developers quickly get started with OpenAI'
 - **Complete Implementation**: Pre-configured frontend and backend with all necessary integrations
 - **Latest OpenAI SDK Features**: Integrated with the newest OpenAI SDK capabilities
 - **Production-Ready Patterns**: Best practices for multi-agent systems, session management, and MCP integration
+- **Phone Agent Support**: Built-in Twilio integration for phone-based voice AI interactions
 - **Example Implementations**: Demo agents and MCP servers as reference for customization
 
 **Note**: The included hotel booking agent, flight booking agent, car rental agent, and MCP servers (booking MCP, post-booking MCP) are demo examples only. Replace them with your own agents and MCP servers to build your custom application.
@@ -21,6 +22,7 @@ This starter kit is designed to help developers quickly get started with OpenAI'
 - **Multiple MCP Servers**: Integration with multiple Model Context Protocol (MCP) servers for tool access
 - **Multiple Sessions**: Concurrent handling of multiple user sessions with proper isolation
 - **Voice Activity Detection**: Server-side VAD for natural conversation flow
+- **Twilio Phone Integration**: Built-in support for phone-based voice interactions via Twilio Media Streams API
 
 ## 🎬 Demo Video
 
@@ -51,6 +53,7 @@ Watch the demo video to see the following features in action:
 - Socket.IO
 - OpenAI Realtime API
 - Model Context Protocol (MCP)
+- Twilio Media Streams (optional)
 
 ## Getting Started
 
@@ -107,6 +110,13 @@ OPENAI_VOICE_MODEL=gpt-realtime
 
 # Server Port (optional, defaults to 4000)
 PORT=4000
+
+# Twilio Integration (optional)
+# Set TWILIO_ENABLE=true to enable Twilio phone call support
+TWILIO_ENABLE=false
+# Full WebSocket URL for Twilio Media Stream (must use wss:// for production)
+# Example: wss://ai-voice-agent.ilikeai.ca/media-stream
+TWILIO_WEBHOOK_URL=wss://your-domain.com/media-stream
 ```
 
 3. **Start Backend Application**
@@ -156,10 +166,66 @@ The system consists of:
 2. **Backend**: Express server with Socket.IO for WebSocket connections
 3. **OpenAI Realtime API**: Handles voice-to-voice AI interactions
 4. **MCP Servers**: Provide tools and capabilities to AI agents
+5. **Twilio Integration** (optional): Phone call support via Twilio Media Streams API
 
 For detailed architecture documentation, see:
 - [Backend Architecture](./doc/backend-voice-ai-agent-design.md)
 - [Frontend Audio Processing](./doc/frontend-audio-process.md)
+
+## Twilio Phone Integration
+
+The system supports voice interactions via phone calls through Twilio integration.
+
+### Prerequisites
+
+- Twilio account with a phone number
+- Server accessible via HTTPS/WSS (for production)
+
+### Configuration
+
+1. **Enable Twilio Integration**:
+
+   In your `.env` file:
+   ```env
+   TWILIO_ENABLE=true
+   TWILIO_WEBHOOK_URL=wss://your-domain.com/media-stream
+   ```
+
+   Note: `TWILIO_WEBHOOK_URL` must be the full WebSocket URL with `wss://` protocol for production use.
+
+2. **Configure Twilio Phone Number**:
+
+   In Twilio Console:
+   - Go to Phone Numbers → Manage → Active numbers
+   - Select your phone number
+   - In the "Voice & Fax" section, set the webhook URL:
+     ```
+     https://your-domain.com/incoming-call
+     ```
+   - Set HTTP method to `POST`
+
+### How It Works
+
+1. User calls your Twilio phone number
+2. Twilio sends HTTP POST to `/incoming-call` endpoint
+3. Server responds with TwiML XML containing `<Stream>` directive
+4. Twilio connects to `/media-stream` WebSocket endpoint
+5. Real-time bidirectional audio streaming begins
+6. AI agent processes voice input and responds via phone
+
+### Local Development
+
+For local development, use a tunneling service like ngrok:
+
+```bash
+# Start ngrok
+ngrok http 4000
+
+# Use the HTTPS URL provided by ngrok
+TWILIO_WEBHOOK_URL=wss://abc123.ngrok.io/media-stream
+```
+
+Then configure your Twilio webhook to point to `https://abc123.ngrok.io/incoming-call`.
 
 ## Customization
 

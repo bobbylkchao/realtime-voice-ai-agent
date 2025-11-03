@@ -9,14 +9,16 @@ interface MessageItemComponentProps {
   message: IMessage
 }
 
-const MessageItemComponent: React.FC<MessageItemComponentProps> = ({ message }) => {
+const MessageItemComponent: React.FC<MessageItemComponentProps> = ({
+  message,
+}) => {
   const [content, setContent] = useState(message.content)
   const [components, setComponents] = useState<null | IComponentItem[]>(null)
 
   const updateMessageContent = useCallback(async (newMessage: IMessage) => {
     if (newMessage.role === 'assistant' && newMessage.content !== 'loading') {
       const htmlContent = newMessage.content
-      setContent(addTargetAttrToHyperLink(htmlContent ))
+      setContent(addTargetAttrToHyperLink(htmlContent))
       if (newMessage?.componentItem && newMessage.componentItem.length > 0) {
         setComponents(newMessage.componentItem)
       }
@@ -32,9 +34,14 @@ const MessageItemComponent: React.FC<MessageItemComponentProps> = ({ message }) 
   const DisplayComponent = useCallback((): React.ReactElement => {
     if (components && components.length > 0) {
       const renderedComponents = components.map((component, index) => {
-        const Component = componentConfigs[component?.displayComponentName || '']
+        const Component =
+          componentConfigs[component?.displayComponentName || '']
         if (Component) {
-          return <ComponentWrapper key={index}><Component {...component.componentProps} /></ComponentWrapper>
+          return (
+            <ComponentWrapper key={index}>
+              <Component {...component.componentProps} />
+            </ComponentWrapper>
+          )
         }
         return <></>
       })
@@ -47,10 +54,15 @@ const MessageItemComponent: React.FC<MessageItemComponentProps> = ({ message }) 
     <MessageItem role={message.role}>
       <div>
         {content === 'loading' ? (
-          <div className="message"><LoadingAnimation /></div>
+          <div className="message">
+            <LoadingAnimation />
+          </div>
         ) : (
           <>
-            <div className="message" dangerouslySetInnerHTML={{ __html: content }} />
+            <div
+              className="message"
+              dangerouslySetInnerHTML={{ __html: content }}
+            />
             <DisplayComponent />
           </>
         )}

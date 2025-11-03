@@ -13,7 +13,8 @@ export const Wrapper = styled.div`
   font-family: ${themeConfig.fontFamily};
   overflow: hidden;
 
-  button, li {
+  button,
+  li {
     font-size: ${themeConfig.textSize.default};
     font-family: ${themeConfig.fontFamily};
   }

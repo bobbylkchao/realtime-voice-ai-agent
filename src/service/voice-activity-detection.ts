@@ -3,7 +3,7 @@ let rafId = 0
 let mediaStream: MediaStream | null = null
 
 export const initVoiceActivityDetection = async (
-  callback: (_isSpeaking: boolean, _audioChunk?: ArrayBuffer) => void,
+  callback: (_isSpeaking: boolean, _audioChunk?: ArrayBuffer) => void
 ): Promise<void> => {
   if (audioContext) return
   try {
@@ -27,31 +27,31 @@ export const initVoiceActivityDetection = async (
     const float32ToPCM16 = (float32Array: Float32Array): ArrayBuffer => {
       const buffer = new ArrayBuffer(float32Array.length * 2) // 2 bytes per 16-bit sample
       const view = new DataView(buffer)
-      
+
       for (let i = 0; i < float32Array.length; i++) {
         // Convert from [-1, 1] range to [-32768, 32767] range
         const sample = Math.max(-1, Math.min(1, float32Array[i]))
         const pcm16 = Math.round(sample * 32767)
         view.setInt16(i * 2, pcm16, true) // little-endian
       }
-      
+
       return buffer
     }
 
     const checkSpeaking = () => {
       if (!analyser) return
       analyser.getFloatTimeDomainData(dataArray)
-    
+
       let sum = 0
       for (let i = 0; i < dataArray.length; i++) {
         sum += dataArray[i] * dataArray[i]
       }
       const rms = Math.sqrt(sum / dataArray.length)
-    
+
       const now = performance.now()
       const threshold = 0.02
       const silenceDelay = 300
-    
+
       if (rms > threshold) {
         lastSpokeTime = now
         if (!speaking) {
@@ -60,13 +60,13 @@ export const initVoiceActivityDetection = async (
         }
         // Convert to PCM16 ArrayBuffer for OpenAI Realtime API
         const pcm16Buffer = float32ToPCM16(dataArray.slice())
-         
+
         callback(speaking, pcm16Buffer)
       } else if (speaking && now - lastSpokeTime > silenceDelay) {
         speaking = false
         callback(speaking)
       }
-    
+
       rafId = requestAnimationFrame(checkSpeaking)
     }
 

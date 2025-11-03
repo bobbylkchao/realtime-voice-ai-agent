@@ -23,7 +23,7 @@
     "test:coverage": "vitest --coverage",
     "preview": "vite preview",
     "lint": "eslint --config ./eslint.config.mjs src --fix",
-    "prettier-format": "prettier --config .prettierrc 'src/**/*.ts' --write",
+    "format": "prettier --config .prettierrc \"src/**/*.{ts,tsx,js,jsx,json,css,md}\" --write",
     "version": "npx standard-version --skip.tag --skip.commit --release-as patch"
   },
   "browserslist": {

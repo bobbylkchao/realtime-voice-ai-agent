@@ -9,7 +9,7 @@ export const Button = styled.button`
   color: ${themeConfig.textColor.primary};
   cursor: pointer;
 
-  &:hover{
+  &:hover {
     background-color: ${themeConfig.secondary};
   }
 `
@@ -22,7 +22,7 @@ export const RedButton = styled.button`
   color: #ffffff;
   cursor: pointer;
 
-  &:hover{
+  &:hover {
     background-color: #f56161;
     cursor: pointer;
   }

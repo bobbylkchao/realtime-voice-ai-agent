@@ -11,8 +11,13 @@ interface IQuickActionsProps {
   onSend: (_value: string) => Promise<string | undefined>
 }
 
-const QuickActions = ({ data, onSend }: IQuickActionsProps): React.ReactElement => {
-  const [formatQuickAction, setFormatQuickAction] = useState<IQuickActions[] | null>(null)
+const QuickActions = ({
+  data,
+  onSend,
+}: IQuickActionsProps): React.ReactElement => {
+  const [formatQuickAction, setFormatQuickAction] = useState<
+    IQuickActions[] | null
+  >(null)
 
   useEffect(() => {
     if (data) {

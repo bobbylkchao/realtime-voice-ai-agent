@@ -23,7 +23,9 @@ export const ChatDisplay = styled.div`
   flex-direction: column;
 `
 
-export const MessageItem = styled.div<{ role: 'system' | 'user' | 'assistant' }>`
+export const MessageItem = styled.div<{
+  role: 'system' | 'user' | 'assistant'
+}>`
   display: flex;
   margin: 8px 0;
   justify-content: ${(props) => (props.role === 'user' ? 'right' : 'left')};
@@ -31,7 +33,7 @@ export const MessageItem = styled.div<{ role: 'system' | 'user' | 'assistant' }>
   color: ${themeConfig.primary};
   font-size: ${themeConfig.textSize.default};
 
-  >div {
+  > div {
     display: flex;
     flex-direction: column;
     max-width: 80%;
@@ -45,28 +47,34 @@ export const MessageItem = styled.div<{ role: 'system' | 'user' | 'assistant' }>
     display: flex;
     color: ${themeConfig.textColor.contrast};
     margin: 10px 0;
-    text-align: ${(props) => (
-      props.role === 'user' ? 'right' : 'left'
-    )};
+    text-align: ${(props) => (props.role === 'user' ? 'right' : 'left')};
   }
 
   div.message {
     display: flex;
     flex-direction: column;
     width: auto;
-    color: ${(props) => (
-      props.role === 'user' ? `${themeConfig.textColor.primary}` : `${themeConfig.textColor.lighter}`
-    )};
+    color: ${(props) =>
+      props.role === 'user'
+        ? `${themeConfig.textColor.primary}`
+        : `${themeConfig.textColor.lighter}`};
     border-radius: 10px;
     padding: 20px 15px;
     margin: 0;
-    background-color: ${(props) => (
-      props.role === 'user' ? `${themeConfig.primary}` : `${themeConfig.backgroundColor.xxLighter}`
-    )};
-    border: 1px solid ${(props) => (
-      props.role === 'user' ? `${themeConfig.primary}` : `${themeConfig.border.primary}`
-    )};
-    box-shadow: rgba(0, 0, 0, 0.03) 5px 4px 4px 0px, rgba(0, 0, 0, 0.24) 0px 0px 1px 0px, rgba(0, 0, 0, 0.16) 0px 2px 1px -1px, rgba(0, 0, 0, 0.12) 0px 2px 4px 0px;
+    background-color: ${(props) =>
+      props.role === 'user'
+        ? `${themeConfig.primary}`
+        : `${themeConfig.backgroundColor.xxLighter}`};
+    border: 1px solid
+      ${(props) =>
+        props.role === 'user'
+          ? `${themeConfig.primary}`
+          : `${themeConfig.border.primary}`};
+    box-shadow:
+      rgba(0, 0, 0, 0.03) 5px 4px 4px 0px,
+      rgba(0, 0, 0, 0.24) 0px 0px 1px 0px,
+      rgba(0, 0, 0, 0.16) 0px 2px 1px -1px,
+      rgba(0, 0, 0, 0.12) 0px 2px 4px 0px;
 
     p {
       line-height: 1.5;
@@ -81,7 +89,14 @@ export const MessageItem = styled.div<{ role: 'system' | 'user' | 'assistant' }>
       margin: 10px 0;
     }
 
-    h1,h2,h3,h4,h5,ol,ul,li {
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    ol,
+    ul,
+    li {
       margin: 0;
       font-size: ${themeConfig.textSize.default};
     }
@@ -103,7 +118,7 @@ export const MessageItem = styled.div<{ role: 'system' | 'user' | 'assistant' }>
       padding: 10px;
       border-radius: 5px;
       overflow-y: auto;
-      font-family: Menlo, Consolas, Monaco, "Courier New", monospace;
+      font-family: Menlo, Consolas, Monaco, 'Courier New', monospace;
       font-size: 14px;
     }
 
@@ -116,15 +131,14 @@ export const MessageItem = styled.div<{ role: 'system' | 'user' | 'assistant' }>
       padding: 10px;
       border-radius: 5px;
       overflow-y: auto;
-      font-family: Menlo, Consolas, Monaco, "Courier New", monospace;
+      font-family: Menlo, Consolas, Monaco, 'Courier New', monospace;
       font-size: 14px;
-      
+
       code {
         white-space: pre-wrap;
         word-wrap: break-word;
       }
     }
-
   }
 `
 
@@ -178,7 +192,11 @@ export const QuickActionItem = styled.button`
   padding: 10px 20px;
   background-color: rgb(255, 255, 255);
   color: ${themeConfig.primary};
-  box-shadow: rgba(0, 0, 0, 0.03) 0px -1px 0px 0px, rgba(0, 0, 0, 0.24) 0px 0px 1px 0px, rgba(0, 0, 0, 0.16) 0px 2px 1px -1px, rgba(0, 0, 0, 0.12) 0px 2px 4px 0px;
+  box-shadow:
+    rgba(0, 0, 0, 0.03) 0px -1px 0px 0px,
+    rgba(0, 0, 0, 0.24) 0px 0px 1px 0px,
+    rgba(0, 0, 0, 0.16) 0px 2px 1px -1px,
+    rgba(0, 0, 0, 0.12) 0px 2px 4px 0px;
   margin-right: 10px;
   margin-bottom: 10px;
 

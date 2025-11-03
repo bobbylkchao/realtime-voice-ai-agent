@@ -43,42 +43,68 @@ This system implements a realtime voice AI agent platform using OpenAI's Realtim
 │  Web Client     │
 └────────┬────────┘
          │ WebSocket
-         │ /realtime-voice
+         │ /realtime-voice (Socket.IO)
          ▼
-┌─────────────────┐
-│ WebSocket      │  ┌─────────────────┐
-│ Server         │──│ Voice Session   │
-│ (Socket.IO)    │  │ Manager         │
-└─────────────────┘  └────────┬────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │ RealtimeSession │
-                    │ (per client)     │
-                    └────────┬─────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │ Front Desk      │
-                    │ Agent           │
-                    └────────┬────────┘
-                             │
-            ┌────────────────┼────────────────┐
-            │                │                │
-            ▼                ▼                ▼
-    ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-    │ Hotel       │  │ Flight      │  │ Car Rental  │
-    │ Booking     │  │ Booking     │  │ Booking     │
-    │ Agent       │  │ Agent       │  │ Agent       │
-    └─────────────┘  └─────────────┘  └─────────────┘
-            │                │                │
-            └────────────────┼────────────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │ MCP Servers     │
-                    │ (Tools)         │
-                    └─────────────────┘
+┌─────────────────┐                    ┌─────────────────┐
+│ WebSocket      │                    │ Twilio Phone    │
+│ Server         │                    │ Call            │
+│ (Socket.IO)    │                    └────────┬────────┘
+└─────────────────┘                          │
+         │                                    │ HTTP POST
+         │                                    │ /incoming-call
+         │                                    │
+         │                          ┌────────▼────────┐
+         │                          │ Twilio HTTP     │
+         │                          │ Route Handler   │
+         │                          └────────┬────────┘
+         │                                    │
+         │                                    │ WebSocket
+         │                                    │ /media-stream
+         │                                    │ (Native WS)
+         │                                    ▼
+         │                          ┌─────────────────┐
+         │                          │ Twilio WebSocket│
+         │                          │ Server          │
+         └──────────────────────────┼─────────────────┘
+                                    │
+                                    │ TwilioRealtimeTransportLayer
+                                    │
+                                    ▼
+                          ┌─────────────────┐
+                          │ Voice Session   │
+                          │ Manager         │
+                          │ / Phone Session │
+                          │ Manager         │
+                          └────────┬────────┘
+                                   │
+                                   ▼
+                          ┌─────────────────┐
+                          │ RealtimeSession │
+                          │ (per client/call)│
+                          └────────┬─────────┘
+                                   │
+                                   ▼
+                          ┌─────────────────┐
+                          │ Front Desk      │
+                          │ Agent           │
+                          └────────┬────────┘
+                                   │
+            ┌──────────────────────┼──────────────────────┐
+            │                      │                      │
+            ▼                      ▼                      ▼
+    ┌─────────────┐        ┌─────────────┐        ┌─────────────┐
+    │ Hotel       │        │ Flight      │        │ Car Rental  │
+    │ Booking     │        │ Booking     │        │ Booking     │
+    │ Agent       │        │ Agent       │        │ Agent       │
+    └─────────────┘        └─────────────┘        └─────────────┘
+            │                      │                      │
+            └──────────────────────┼──────────────────────┘
+                                   │
+                                   ▼
+                          ┌─────────────────┐
+                          │ MCP Servers     │
+                          │ (Tools)         │
+                          └─────────────────┘
 ```
 
 ## Core Components
@@ -424,10 +450,13 @@ The WebSocket layer provides the communication bridge between clients and the vo
 
 **Implementation**: `src/service/websocket/index.ts`
 
+### Web Client WebSocket
+
 **Configuration**:
 - Transport: WebSocket only (no polling fallback)
 - Path: `/realtime-voice`
 - CORS: Configured for cross-origin access
+- Library: Socket.IO
 
 **Message Types**:
 
@@ -446,6 +475,69 @@ The WebSocket layer provides the communication bridge between clients and the vo
 - `ASSISTANT_AUDIO_CHUNK`: Audio data from assistant (ArrayBuffer)
 
 **Event Handling**: `src/service/open-ai/handle-realtime-voice.ts`
+
+### Twilio Media Stream WebSocket
+
+The system supports integration with Twilio for phone-based voice interactions:
+
+**Implementation**: `src/service/websocket/index.ts` (`initTwilioWebSocketServer`)
+
+**Configuration**:
+- Transport: Native WebSocket (using `ws` library)
+- Path: `/media-stream`
+- Protocol: Twilio Media Streams API
+- Transport Layer: `TwilioRealtimeTransportLayer` from `@openai/agents-extensions`
+
+**Twilio Integration Architecture**:
+
+```
+Phone Call → Twilio → /incoming-call (HTTP POST)
+                      ↓
+                  TwiML Response
+                  <Stream url="wss://.../media-stream" />
+                      ↓
+                  Twilio connects to /media-stream (WebSocket)
+                      ↓
+            TwilioRealtimeTransportLayer
+                      ↓
+            RealtimeSession (OpenAI)
+```
+
+**Components**:
+
+1. **HTTP Route Handler** (`src/service/twilio/http-route.ts`):
+   - Endpoint: `/incoming-call`
+   - Method: `ALL` (handles GET/POST)
+   - Returns: TwiML XML response
+   - Configurable via `TWILIO_ENABLE` and `TWILIO_WEBHOOK_URL` environment variables
+
+2. **WebSocket Server** (`initTwilioWebSocketServer`):
+   - Accepts Twilio Media Stream connections
+   - Creates per-call `RealtimeSession` with `TwilioRealtimeTransportLayer`
+   - Manages session lifecycle tied to WebSocket connection
+   - Uses `callId` from `X-Twilio-Call-Sid` header for tracking
+
+3. **Session Creation** (`src/service/open-ai/phone-session-manager.ts`):
+   - `createTwilioVoiceAgentAndSession()` function
+   - Connects to MCP servers per call
+   - Creates `RealtimeSession` with `frontDeskAgent`
+   - Handles tool approval and MCP tool calls
+
+**Twilio Features**:
+- **Bidirectional Audio**: Real-time audio streaming between phone and AI
+- **Automatic Format Conversion**: Twilio transport layer handles audio format conversion
+- **Per-Call Isolation**: Each phone call gets its own session and MCP connections
+- **Connection Management**: Automatic cleanup on call termination
+
+**Environment Variables**:
+- `TWILIO_ENABLE`: Set to `'true'` to enable Twilio integration
+- `TWILIO_WEBHOOK_URL`: Full WebSocket URL for Media Stream (e.g., `wss://ai-voice-agent.ilikeai.ca/media-stream`)
+
+**Twilio Setup**:
+1. Configure Twilio phone number webhook to point to `https://your-domain.com/incoming-call`
+2. Set `TWILIO_ENABLE=true` in environment variables
+3. Set `TWILIO_WEBHOOK_URL` to your public WebSocket URL (must be `wss://` for production)
+4. Ensure server is accessible via HTTPS/WSS for production use
 
 ## Audio Processing
 
@@ -611,9 +703,10 @@ try {
 
 - **Runtime**: Node.js (>=16.0.0)
 - **Framework**: Express.js
-- **WebSocket**: Socket.IO
+- **WebSocket**: Socket.IO (web clients), native WebSocket via `ws` (Twilio)
 - **AI Platform**: OpenAI Realtime API
 - **Agent Framework**: @openai/agents, @openai/agents-realtime
+- **Twilio Integration**: @openai/agents-extensions (TwilioRealtimeTransportLayer)
 - **MCP Protocol**: @modelcontextprotocol/sdk
 - **Logging**: Pino
 - **Type Safety**: TypeScript

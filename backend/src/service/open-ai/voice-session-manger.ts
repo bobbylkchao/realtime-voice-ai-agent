@@ -1,6 +1,6 @@
 import { RealtimeSession, TransportLayerAudio } from '@openai/agents-realtime'
-import { Socket } from 'socket.io'
 import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
+import { Socket } from 'socket.io'
 import { mcpServerList } from '../mcp-server'
 import logger from '../../misc/logger'
 import { frontDeskAgent } from './agents/front-desk-agent'
@@ -94,7 +94,7 @@ const createOpenAiVoiceAgentAndSession = async (
               },
             },
           },
-        }
+        },
       )
 
       logger.info(
