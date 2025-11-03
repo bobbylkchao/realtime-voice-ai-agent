@@ -17,7 +17,9 @@ export const initTwilioHttpRoute = (app: Express) => {
     const twimlResponse = `
 <?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Hi, thanks for calling. I'm your AI trip booking assistant. How can I help you today?</Say>
+  <Say voice="Polly.Salli">
+    <prosody rate="fast">Hi, thanks for calling. I'm your AI phone agent. How can I help with your trip today?</prosody>
+  </Say>
   <Connect>
     <Stream url="${mediaStreamUrl}">
       <Parameter name="callerId" value="${callerId || ''}" />
