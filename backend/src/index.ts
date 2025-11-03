@@ -10,10 +10,14 @@ config()
 
 const startServices = async () => {
   const PORT = Number(process.env.PORT) || 4000
+  const IS_TWILIO_ENABLE = process.env.TWILIO_ENABLE === 'true'
+  const TWILIO_WEBHOOK_URL = process.env.TWILIO_WEBHOOK_URL
+
   const app = express()
   app.use(express.json())
   app.use(express.urlencoded({ extended: true }))
   const httpServer = createServer(app)
+
   initTwilioHttpRoute(app)
   initWebSocketServer(httpServer)
   initTwilioWebSocketServer(httpServer)
@@ -25,9 +29,9 @@ const startServices = async () => {
       `[Server] Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`
     )
 
-    if (process.env.TWILIO_ENABLE === 'true') {
+    if (IS_TWILIO_ENABLE) {
       logger.info(
-        `[Server] Twilio Media Stream ready at: ${process.env.TWILIO_WEBHOOK_URL}`
+        `[Server] Twilio Media Stream ready at: ${TWILIO_WEBHOOK_URL}`
       )
     }
   })
