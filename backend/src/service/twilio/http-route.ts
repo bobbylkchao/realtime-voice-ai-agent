@@ -10,19 +10,20 @@ export const initTwilioHttpRoute = (app: Express) => {
   app.all('/incoming-call', (req, res) => {
     const mediaStreamUrl = process.env.TWILIO_WEBHOOK_URL
     const callerId = req.body?.From || req.query?.From
+    const mediaStreamUrlWithCallerId = `${mediaStreamUrl}?callerId=${callerId}`
     
     const twimlResponse = `
 <?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say>Hi, thanks for calling. I'm your AI trip booking assistant. How can I help you today?</Say>
   <Connect>
-    <Stream url="${mediaStreamUrl}?callerId=${callerId}" />
+    <Stream url="${mediaStreamUrlWithCallerId}" />
   </Connect>
 </Response>`.trim()
 
     logger.info(
       {
-        mediaStreamUrl,
+        mediaStreamUrlWithCallerId,
         callerId,
       },
       '[Twilio] Incoming call received'
