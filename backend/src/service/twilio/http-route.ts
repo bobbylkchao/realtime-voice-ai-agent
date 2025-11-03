@@ -10,26 +10,32 @@ export const initTwilioHttpRoute = (app: Express) => {
   app.all('/incoming-call', (req, res) => {
     const mediaStreamUrl = process.env.TWILIO_WEBHOOK_URL
     const callerId = req.body?.From || req.query?.From
-    const mediaStreamUrlWithCallerId = `${mediaStreamUrl}?callerId=${callerId}`
     
+    // Use <Parameter> element instead of query string
+    // Query parameters are not supported in Twilio Stream URL
+    // Parameters will be available in WebSocket 'start' event's customParameters
     const twimlResponse = `
 <?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say>Hi, thanks for calling. I'm your AI trip booking assistant. How can I help you today?</Say>
   <Connect>
-    <Stream url="${mediaStreamUrlWithCallerId}" />
+    <Stream url="${mediaStreamUrl}">
+      <Parameter name="callerId" value="${callerId || ''}" />
+    </Stream>
   </Connect>
 </Response>`.trim()
 
     logger.info(
       {
-        mediaStreamUrlWithCallerId,
         callerId,
       },
       '[Twilio] Incoming call received'
     )
 
     res.type('text/xml').send(twimlResponse)
-    logger.info('[Twilio] TwiML response sent, connecting to media stream')
+    logger.info({
+      mediaStreamUrl,
+      callerId,
+    }, '[Twilio] TwiML response sent, connecting to media stream')
   })
 }

@@ -87,9 +87,10 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
   wss.on('connection', async (ws: WebSocket, req?: any) => {
     const request = req || (ws as any).request
     const callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
+    let callerId: string | undefined
     
     logger.info(
-      { request },
+      { callId },
       '[Twilio Media Stream] WebSocket connection established'
     )
 
@@ -106,7 +107,7 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
     })
 
     // TODO: to ensure speed, maybe add MCP servers later?
-    const mcpServers: MCPServerStreamableHttp[] = []
+    /*const mcpServers: MCPServerStreamableHttp[] = []
     for (const mcpServerConfig of mcpServerList) {
       try {
         const mcpServer = new MCPServerStreamableHttp({
@@ -132,8 +133,8 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
           '[Twilio Media Stream] Failed to connect to MCP server'
         )
       }
-    }
-    const agent = frontDeskAgent(mcpServers)
+    }*/
+    const agent = frontDeskAgent([])
 
     // Create session immediately
     const session = new RealtimeSession(agent, {
@@ -158,10 +159,25 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
 
     // Listen to transport events to access raw Twilio messages (Tip #2 from docs)
     session.on('transport_event', (event) => {
-      logger.debug(
-        { event },
-        '[Twilio Media Stream] transport_event'
-      )
+      if (event.type === 'twilio_message') {
+        const message = (event as any).message
+        
+        // Extract callerId from 'start' event's customParameters
+        if (message?.event === 'start' && message?.start?.customParameters) {
+          callerId = message.start.customParameters.callerId
+          if (callerId) {
+            logger.info(
+              { callId, callerId },
+              '[Twilio Media Stream] Caller ID extracted from start event'
+            )
+          }
+        }
+        
+        logger.info(
+          { callId, callerId, event },
+          '[Twilio Media Stream] Raw Twilio message received'
+        )
+      }
     })
 
     // Connect IMMEDIATELY
