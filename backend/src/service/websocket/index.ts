@@ -7,7 +7,7 @@ import { handleRealtimeVoice, VoiceSessionManager } from '../open-ai'
 import { frontDeskAgent } from '../open-ai/agents/front-desk-agent'
 import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from './types'
 import logger from '../../misc/logger'
-import { MCPServerStreamableHttp } from '@openai/agents'
+import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
 import { mcpServerList } from '../mcp-server'
 
 export const initWebSocketServer = (httpServer: HttpServer) => {
@@ -85,119 +85,121 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
   })
 
   wss.on('connection', async (ws: WebSocket, req?: any) => {
-    let callerId: string | undefined
+    return withTrace('twilioWebSocketServerConnection', async () => {
+      let callerId: string | undefined
 
-    const openAiApiKey = process.env.OPENAI_API_KEY
-    if (!openAiApiKey) {
-      logger.error('[Twilio Media Stream] OpenAI API key missing')
-      ws.close()
-      return
-    }
-
-    // Speed is the name of the game: Create transport and session IMMEDIATELY
-    const twilioTransportLayer = new TwilioRealtimeTransportLayer({
-      twilioWebSocket: ws,
-    })
-
-    // TODO: to ensure speed, maybe add MCP servers later?
-    const mcpServers: MCPServerStreamableHttp[] = []
-    for (const mcpServerConfig of mcpServerList) {
-      try {
-        const mcpServer = new MCPServerStreamableHttp({
-          url: mcpServerConfig.url,
-          name: mcpServerConfig.name,
-        })
-        await mcpServer.connect()
-        mcpServers.push(mcpServer)
-        logger.info(
-          {
-            callerId,
-            mcpServerName: mcpServerConfig.name,
-          },
-          '[Twilio Media Stream] MCP server connected successfully'
-        )
-      } catch (mcpError) {
-        logger.warn(
-          {
-            mcpError,
-            callerId,
-            mcpServerName: mcpServerConfig.name,
-          },
-          '[Twilio Media Stream] Failed to connect to MCP server'
-        )
+      const openAiApiKey = process.env.OPENAI_API_KEY
+      if (!openAiApiKey) {
+        logger.error('[Twilio Media Stream] OpenAI API key missing')
+        ws.close()
+        return
       }
-    }
-    const agent = frontDeskAgent(mcpServers)
-
-    // Create session immediately
-    const session = new RealtimeSession(agent, {
-      transport: twilioTransportLayer,
-      model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
-      config: {
-        audio: {
-          input: {
-            turnDetection: {
-              type: 'server_vad',
-              create_response: true,
-              interrupt_response: true,
-              silence_duration_ms: 500,
-            },
-          },
-          output: {
-            speed: 1.2,
-          },
-        },
-      },
-    })
-
-    // Listen to transport events to access raw Twilio messages (Tip #2 from docs)
-    session.on('transport_event', (event) => {
-      if (event.type === 'twilio_message') {
-        const message = (event as any).message
-        
-        // Extract callerId from 'start' event's customParameters
-        if (message?.event === 'start' && message?.start?.customParameters) {
-          callerId = message.start.customParameters.callerId
-        }
-      }
-    })
-
-    try {
-      await session.connect({
-        apiKey: openAiApiKey,
+  
+      // Speed is the name of the game: Create transport and session IMMEDIATELY
+      const twilioTransportLayer = new TwilioRealtimeTransportLayer({
+        twilioWebSocket: ws,
       })
   
-      logger.info(
-        { callerId },
-        '[Twilio Media Stream] Connected to OpenAI Realtime API'
-      )
-
-    } catch (error) {
-      logger.error(
-        { error, callerId },
-        '[Twilio Media Stream] Failed to connect to OpenAI'
-      )
-      console.error(error)
-      ws.close()
-    }
-
-    ws.on('close', () => {
-      logger.info({ callerId }, '[Twilio Media Stream] WebSocket closed')
+      // TODO: to ensure speed, maybe add MCP servers later?
+      const mcpServers: MCPServerStreamableHttp[] = []
+      for (const mcpServerConfig of mcpServerList) {
+        try {
+          const mcpServer = new MCPServerStreamableHttp({
+            url: mcpServerConfig.url,
+            name: mcpServerConfig.name,
+          })
+          await mcpServer.connect()
+          mcpServers.push(mcpServer)
+          logger.info(
+            {
+              callerId,
+              mcpServerName: mcpServerConfig.name,
+            },
+            '[Twilio Media Stream] MCP server connected successfully'
+          )
+        } catch (mcpError) {
+          logger.warn(
+            {
+              mcpError,
+              callerId,
+              mcpServerName: mcpServerConfig.name,
+            },
+            '[Twilio Media Stream] Failed to connect to MCP server'
+          )
+        }
+      }
+      const agent = frontDeskAgent(mcpServers)
+  
+      // Create session immediately
+      const session = new RealtimeSession(agent, {
+        transport: twilioTransportLayer,
+        model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
+        config: {
+          audio: {
+            input: {
+              turnDetection: {
+                type: 'server_vad',
+                create_response: true,
+                interrupt_response: true,
+                silence_duration_ms: 500,
+              },
+            },
+            output: {
+              speed: 1.2,
+            },
+          },
+        },
+      })
+  
+      // Listen to transport events to access raw Twilio messages (Tip #2 from docs)
+      session.on('transport_event', (event) => {
+        if (event.type === 'twilio_message') {
+          const message = (event as any).message
+          
+          // Extract callerId from 'start' event's customParameters
+          if (message?.event === 'start' && message?.start?.customParameters) {
+            callerId = message.start.customParameters.callerId
+          }
+        }
+      })
+  
       try {
-        session.close()
+        await session.connect({
+          apiKey: openAiApiKey,
+        })
+    
+        logger.info(
+          { callerId },
+          '[Twilio Media Stream] Connected to OpenAI Realtime API'
+        )
+  
       } catch (error) {
         logger.error(
           { error, callerId },
-          '[Twilio Media Stream] Error closing session'
+          '[Twilio Media Stream] Failed to connect to OpenAI'
         )
+        console.error(error)
+        ws.close()
       }
-    })
-
-    ws.on('error', (error) => {
-      logger.error(
-        { error, callerId },
-        '[Twilio Media Stream] WebSocket error'
-      )
+  
+      ws.on('close', () => {
+        logger.info({ callerId }, '[Twilio Media Stream] WebSocket closed')
+        try {
+          session.close()
+        } catch (error) {
+          logger.error(
+            { error, callerId },
+            '[Twilio Media Stream] Error closing session'
+          )
+        }
+      })
+  
+      ws.on('error', (error) => {
+        logger.error(
+          { error, callerId },
+          '[Twilio Media Stream] WebSocket error'
+        )
+      })
     })
   })
 }
