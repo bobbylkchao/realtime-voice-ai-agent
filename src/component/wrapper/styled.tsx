@@ -2,7 +2,6 @@ import styled from 'styled-components'
 import { themeConfig } from '../../theme/config'
 
 export const Wrapper = styled.div`
-  background-color: #272727;
   color: ${themeConfig.textColor.contrast};
   display: flex;
   align-items: center;
