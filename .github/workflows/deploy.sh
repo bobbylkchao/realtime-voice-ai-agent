@@ -82,6 +82,8 @@ if [ -z "$SERVICE_STATUS" ]; then
     exit 1
 fi
 
+pm2 save
+
 echo "📋 Service status:"
 pm2 list 2>/dev/null | grep "realtime-agent-backend"
 
