@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { PhoneOutlined, PoweroffOutlined } from '@ant-design/icons'
+import { Tooltip } from 'antd'
 import {
   ChatContainer,
   ChatDisplay,
@@ -118,9 +119,11 @@ const StartCallButton = React.memo(
     isConnected: boolean
   }): React.ReactElement => {
     return (
-      <SubmitButton onClick={onStart} disabled={!isConnected}>
-        <PhoneOutlined style={{ fontSize: 25 }} />
-      </SubmitButton>
+      <Tooltip title="Click to start a call">
+        <SubmitButton onClick={onStart} disabled={!isConnected}>
+          <PhoneOutlined style={{ fontSize: 25 }} />
+        </SubmitButton>
+      </Tooltip>
     )
   }
 )
