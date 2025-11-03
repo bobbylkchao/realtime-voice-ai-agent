@@ -1,4 +1,3 @@
-import { WebSocket } from 'ws'
 import { RealtimeSession } from '@openai/agents-realtime'
 import { TwilioRealtimeTransportLayer } from '@openai/agents-extensions'
 import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
