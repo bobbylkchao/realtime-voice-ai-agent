@@ -68,15 +68,12 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
   // Handle upgrade only for /media-stream path
   httpServer.on('upgrade', (request, socket, head) => {
     const pathName = new URL(request.url || '', `http://${request.headers.host}`).pathname
-    
-    logger.info({
-      requestUrl: request.url,
-      requestHeaders: request.headers,
-      pathName,
-      request,
-    }, '[Twilio Media Stream] Upgrade request received')
 
     if (pathName === '/media-stream') {
+      logger.info({
+        requestUrl: request.url,
+      }, '[Twilio Media Stream] Upgrade request received')
+
       wss.handleUpgrade(request, socket, head, (ws) => {
         ;(ws as any).request = request
         wss.emit('connection', ws, request)
