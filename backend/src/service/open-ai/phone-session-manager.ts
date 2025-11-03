@@ -7,8 +7,8 @@ import { frontDeskAgent } from '../open-ai/agents/front-desk-agent'
 import logger from '../../misc/logger'
 
 export const createTwilioVoiceAgentAndSession = async (
-  twilioWebSocket: WebSocket,
-  callId: string
+  callId: string,
+  twilioTransportLayer: TwilioRealtimeTransportLayer
 ) => {
   return withTrace('createTwilioVoiceAgentAndSession', async () => {
     try {
@@ -52,12 +52,7 @@ export const createTwilioVoiceAgentAndSession = async (
 
       const agent = frontDeskAgent(mcpServers)
 
-      // Create Twilio transport layer
-      const twilioTransportLayer = new TwilioRealtimeTransportLayer({
-        twilioWebSocket,
-      })
-
-      // Create RealtimeSession with Twilio transport
+      // Create RealtimeSession with provided Twilio transport layer
       const session = new RealtimeSession(agent, {
         transport: twilioTransportLayer,
         model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',

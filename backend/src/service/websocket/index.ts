@@ -2,6 +2,7 @@ import { Server as HttpServer } from 'http'
 import { Server } from 'socket.io'
 import { WebSocketServer, WebSocket } from 'ws'
 import { RealtimeSession } from '@openai/agents-realtime'
+import { TwilioRealtimeTransportLayer } from '@openai/agents-extensions'
 import { MCPServerStreamableHttp } from '@openai/agents'
 import { handleRealtimeVoice, createTwilioVoiceAgentAndSession, VoiceSessionManager } from '../open-ai'
 import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from './types'
@@ -53,28 +54,44 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     path: '/media-stream',
   })
 
-  wss.on('connection', async (ws: WebSocket, req) => {
+  wss.on('connection', (ws: WebSocket, req) => {
     const callId = req.headers['x-twilio-call-sid'] as string || 'unknown'
     logger.info(
       { callId, remoteAddress: req.socket.remoteAddress },
       '[Twilio Media Stream] WebSocket connection established'
     )
 
+    // IMPORTANT: Create transport layer IMMEDIATELY to handle Twilio protocol messages
+    // This must happen synchronously before any async operations
+    const twilioTransportLayer = new TwilioRealtimeTransportLayer({
+      twilioWebSocket: ws,
+    })
+
+    logger.info(
+      { callId },
+      '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
+    )
+
     let session: RealtimeSession | null = null
     let mcpServers: MCPServerStreamableHttp[] = []
 
-    try {
-      const result = await createTwilioVoiceAgentAndSession(ws, callId)
-      session = result.session as unknown as RealtimeSession
-      mcpServers = result.mcpServers
-    } catch (error) {
-      logger.error(
-        { error, callId },
-        '[Twilio Media Stream] Failed to create session, closing connection'
-      )
-      ws.close()
-      return
-    }
+    // Now asynchronously create the session in the background
+    createTwilioVoiceAgentAndSession(callId, twilioTransportLayer)
+      .then((result) => {
+        session = result.session as unknown as RealtimeSession
+        mcpServers = result.mcpServers
+        logger.info(
+          { callId },
+          '[Twilio Media Stream] Session created successfully'
+        )
+      })
+      .catch((error) => {
+        logger.error(
+          { error, callId },
+          '[Twilio Media Stream] Failed to create session, closing connection'
+        )
+        ws.close()
+      })
 
     ws.on('close', async () => {
       logger.info({ callId }, '[Twilio Media Stream] WebSocket connection closed')
