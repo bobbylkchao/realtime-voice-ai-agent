@@ -85,13 +85,11 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
   })
 
   wss.on('connection', async (ws: WebSocket, req?: any) => {
-    const request = req || (ws as any).request
-    const callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
     let callerId: string | undefined
 
     const openAiApiKey = process.env.OPENAI_API_KEY
     if (!openAiApiKey) {
-      logger.error({ callId }, '[Twilio Media Stream] OpenAI API key missing')
+      logger.error('[Twilio Media Stream] OpenAI API key missing')
       ws.close()
       return
     }
@@ -102,7 +100,7 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
     })
 
     // TODO: to ensure speed, maybe add MCP servers later?
-    /*const mcpServers: MCPServerStreamableHttp[] = []
+    const mcpServers: MCPServerStreamableHttp[] = []
     for (const mcpServerConfig of mcpServerList) {
       try {
         const mcpServer = new MCPServerStreamableHttp({
@@ -113,7 +111,7 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
         mcpServers.push(mcpServer)
         logger.info(
           {
-            callId,
+            callerId,
             mcpServerName: mcpServerConfig.name,
           },
           '[Twilio Media Stream] MCP server connected successfully'
@@ -122,14 +120,14 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
         logger.warn(
           {
             mcpError,
-            callId,
+            callerId,
             mcpServerName: mcpServerConfig.name,
           },
           '[Twilio Media Stream] Failed to connect to MCP server'
         )
       }
-    }*/
-    const agent = frontDeskAgent([])
+    }
+    const agent = frontDeskAgent(mcpServers)
 
     // Create session immediately
     const session = new RealtimeSession(agent, {
@@ -173,21 +171,23 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
         { callerId },
         '[Twilio Media Stream] Connected to OpenAI Realtime API'
       )
+
     } catch (error) {
       logger.error(
-        { error, callId },
+        { error, callerId },
         '[Twilio Media Stream] Failed to connect to OpenAI'
       )
+      console.error(error)
       ws.close()
     }
 
     ws.on('close', () => {
-      logger.info({ callId }, '[Twilio Media Stream] WebSocket closed')
+      logger.info({ callerId }, '[Twilio Media Stream] WebSocket closed')
       try {
         session.close()
       } catch (error) {
         logger.error(
-          { error, callId },
+          { error, callerId },
           '[Twilio Media Stream] Error closing session'
         )
       }
@@ -195,7 +195,7 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
 
     ws.on('error', (error) => {
       logger.error(
-        { error, callId },
+        { error, callerId },
         '[Twilio Media Stream] WebSocket error'
       )
     })
