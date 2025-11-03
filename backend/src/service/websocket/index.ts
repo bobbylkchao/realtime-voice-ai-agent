@@ -88,11 +88,6 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
     const request = req || (ws as any).request
     const callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
     let callerId: string | undefined
-    
-    logger.info(
-      { callId },
-      '[Twilio Media Stream] WebSocket connection established'
-    )
 
     const openAiApiKey = process.env.OPENAI_API_KEY
     if (!openAiApiKey) {
@@ -165,29 +160,17 @@ export const initTwilioWebSocketServer = async (httpServer: HttpServer) => {
         // Extract callerId from 'start' event's customParameters
         if (message?.event === 'start' && message?.start?.customParameters) {
           callerId = message.start.customParameters.callerId
-          if (callerId) {
-            logger.info(
-              { callId, callerId },
-              '[Twilio Media Stream] Caller ID extracted from start event'
-            )
-          }
         }
-        
-        logger.info(
-          { callId, callerId, event },
-          '[Twilio Media Stream] Raw Twilio message received'
-        )
       }
     })
 
-    // Connect IMMEDIATELY
     try {
       await session.connect({
         apiKey: openAiApiKey,
       })
   
       logger.info(
-        { callId },
+        { callerId },
         '[Twilio Media Stream] Connected to OpenAI Realtime API'
       )
     } catch (error) {
