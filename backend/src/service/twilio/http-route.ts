@@ -13,11 +13,17 @@ export const initTwilioHttpRoute = (app: Express) => {
     const twimlResponse = `
 <?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Say>Hi, I'm your AI trip booking assistant. You can start talking now!</Say>
+  <Say>Hi, thanks for calling. I'm your AI trip booking assistant. How can I help you today?</Say>
   <Connect>
     <Stream url="${mediaStreamUrl}" />
   </Connect>
 </Response>`.trim()
+
+    // TODO: debug
+    logger.info({
+      body: req.body?.From,
+      query: req.query?.From,
+    }, '[Twilio] Incoming call received - Debug')
 
     logger.info(
       {

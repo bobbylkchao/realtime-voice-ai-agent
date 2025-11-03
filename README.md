@@ -168,6 +168,22 @@ The system consists of:
 4. **MCP Servers**: Provide tools and capabilities to AI agents
 5. **Twilio Integration** (optional): Phone call support via Twilio Media Streams API
 
+### WebSocket Implementation
+
+The system uses two different WebSocket implementations:
+
+- **Socket.IO** (`/realtime-voice`): Used for web client connections. Socket.IO provides a higher-level protocol with features like automatic reconnection, fallback transports, and custom message formats.
+
+- **Native WebSocket** (`/media-stream`): Used for Twilio Media Stream connections. Twilio's Media Stream API requires standard WebSocket protocol (RFC 6455), which is incompatible with Socket.IO's custom protocol. Therefore, the system uses the native `ws` library for Twilio connections.
+
+**Why Two Different Implementations?**
+
+- Socket.IO uses its own protocol layer with custom handshakes and message formats
+- Twilio Media Stream API requires standard WebSocket protocol (RFC 6455)
+- The system manually routes HTTP upgrade requests to ensure:
+  - `/realtime-voice` → Socket.IO (web clients)
+  - `/media-stream` → Native WebSocket (Twilio)
+
 For detailed architecture documentation, see:
 - [Backend Architecture](./doc/backend-voice-ai-agent-design.md)
 - [Frontend Audio Processing](./doc/frontend-audio-process.md)
@@ -209,9 +225,11 @@ The system supports voice interactions via phone calls through Twilio integratio
 1. User calls your Twilio phone number
 2. Twilio sends HTTP POST to `/incoming-call` endpoint
 3. Server responds with TwiML XML containing `<Stream>` directive
-4. Twilio connects to `/media-stream` WebSocket endpoint
+4. Twilio connects to `/media-stream` WebSocket endpoint (using standard WebSocket protocol)
 5. Real-time bidirectional audio streaming begins
 6. AI agent processes voice input and responds via phone
+
+**Note**: The `/media-stream` endpoint uses native WebSocket (via `ws` library) instead of Socket.IO because Twilio Media Stream API requires standard WebSocket protocol (RFC 6455), which is incompatible with Socket.IO's custom protocol.
 
 ### Local Development
 

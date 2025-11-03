@@ -450,6 +450,28 @@ The WebSocket layer provides the communication bridge between clients and the vo
 
 **Implementation**: `src/service/websocket/index.ts`
 
+### WebSocket Implementation Strategy
+
+The system uses **two different WebSocket implementations** to serve different clients:
+
+1. **Socket.IO** - For web clients (`/realtime-voice`)
+2. **Native WebSocket** - For Twilio Media Stream (`/media-stream`)
+
+**Why Two Different Implementations?**
+
+- **Socket.IO Protocol**: Socket.IO uses its own protocol layer with custom handshakes (e.g., `GET /socket.io/?EIO=4&transport=websocket`) and message formats. While it can use WebSocket as a transport, it wraps the standard protocol with its own features.
+
+- **Twilio Requirements**: Twilio Media Stream API uses standard WebSocket protocol (RFC 6455) with standard HTTP upgrade handshake. Socket.IO's custom protocol is incompatible with Twilio's requirements.
+
+- **Manual Routing**: The system manually handles HTTP upgrade requests to route:
+  - `/realtime-voice` → Socket.IO (for web clients)
+  - `/media-stream` → Native WebSocket via `ws` library (for Twilio)
+
+**Implementation Details**:
+- Socket.IO automatically intercepts upgrade requests, so we use `noServer: true` for the native WebSocket server
+- Manual upgrade handling ensures proper routing without conflicts
+- Each implementation serves its specific use case independently
+
 ### Web Client WebSocket
 
 **Configuration**:
@@ -485,8 +507,22 @@ The system supports integration with Twilio for phone-based voice interactions:
 **Configuration**:
 - Transport: Native WebSocket (using `ws` library)
 - Path: `/media-stream`
-- Protocol: Twilio Media Streams API
+- Protocol: Twilio Media Streams API (standard WebSocket RFC 6455)
 - Transport Layer: `TwilioRealtimeTransportLayer` from `@openai/agents-extensions`
+
+**Why Native WebSocket for Twilio?**
+
+Twilio Media Stream API requires standard WebSocket protocol (RFC 6455), which is incompatible with Socket.IO's custom protocol. Socket.IO uses:
+- Custom handshake: `GET /socket.io/?EIO=4&transport=websocket`
+- Custom message framing and event system
+- Additional protocol overhead
+
+Twilio expects:
+- Standard WebSocket handshake: `GET /media-stream HTTP/1.1` with `Upgrade: websocket` header
+- Standard WebSocket binary/text frames
+- No custom protocol layer
+
+Therefore, we use the native `ws` library with `noServer: true` to manually handle upgrade requests and avoid conflicts with Socket.IO.
 
 **Twilio Integration Architecture**:
 
