@@ -18,12 +18,12 @@ import {
 } from '../../service/websocket'
 
 const ChatHistoryItem = ({
-  key,
+  id,
   role,
   content,
   timestamp,
 }: {
-  key: string
+  id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: number
@@ -31,7 +31,7 @@ const ChatHistoryItem = ({
   if (role === 'user') {
     return (
       <div
-        key={key}
+        key={id}
         style={{
           display: 'flex',
           flexDirection: 'column',
@@ -69,7 +69,7 @@ const ChatHistoryItem = ({
 
   return (
     <div
-      key={key}
+      key={id}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -463,6 +463,7 @@ const ChatBot = (): React.ReactElement => {
             {chatHistory.map((item) => (
               <ChatHistoryItem
                 key={item.timestamp.toString()}
+                id={item.timestamp.toString()}
                 role={item.role}
                 content={item.content}
                 timestamp={item.timestamp}

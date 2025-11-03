@@ -19,6 +19,8 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
     },
   })
 
+  logger.info('[Websocket] Socket.IO server initialized on /realtime-voice')
+
   wsServer.on('connection', (socket) => {
     logger.info(`[Websocket] Client connected: ${socket.id}`)
 
@@ -26,6 +28,13 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
       const eventName = message?.event as RealtimeVoiceEventName
       const eventData = message?.data as ArrayBuffer
       handleRealtimeVoice(eventName, eventData, socket)
+    })
+
+    socket.on('connect_error', (error) => {
+      logger.error(
+        { error, socketId: socket.id },
+        '[Websocket] Connection error'
+      )
     })
 
     socket.on('disconnect', async (reason: string) => {
@@ -47,19 +56,34 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
 
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   if (process.env.TWILIO_ENABLE !== 'true') {
-    logger.info('[Twilio] Skip initializing Twilio')
+    logger.info('[Twilio] Skip initializing Twilio WebSocket server')
     return
   }
 
+  // Use noServer option and handle upgrade manually to avoid conflicts with Socket.IO
   const wss = new WebSocketServer({
-    server: httpServer,
-    path: '/media-stream',
+    noServer: true, // Don't automatically handle upgrade
   })
 
-  wss.on('connection', (ws: WebSocket, req) => {
-    const callId = req.headers['x-twilio-call-sid'] as string || 'unknown'
+  // Manually handle upgrade only for /media-stream path
+  httpServer.on('upgrade', (request, socket, head) => {
+    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname
+
+    if (pathname === '/media-stream') {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        // Store request in ws for later use
+        ;(ws as any).request = request
+        wss.emit('connection', ws, request)
+      })
+    }
+    // For all other paths (like /realtime-voice), let Socket.IO handle it
+  })
+
+  wss.on('connection', (ws: WebSocket, req?: any) => {
+    const request = req || (ws as any).request
+    const callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
     logger.info(
-      { callId, remoteAddress: req.socket.remoteAddress },
+      { callId, remoteAddress: request?.socket?.remoteAddress },
       '[Twilio Media Stream] WebSocket connection established'
     )
 
