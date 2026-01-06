@@ -75,6 +75,8 @@ jobs:
           
           echo "🚀 Starting deployment..."
           echo "📡 Connecting to $SSH_USER@$SSH_HOST"
+          echo "SSH USER: $SSH_USER"
+          echo "SSH HOST: $SSH_HOST"
           echo "📂 Deploy path: $DEPLOY_PATH"
           echo "🌿 Branch: $BRANCH"
           
