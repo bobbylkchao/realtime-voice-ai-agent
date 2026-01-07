@@ -83,7 +83,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     const request = req || (ws as any).request
     const callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
     logger.info(
-      { callId, remoteAddress: request?.socket?.remoteAddress },
+      { request },
       '[Twilio Media Stream] WebSocket connection established'
     )
 
