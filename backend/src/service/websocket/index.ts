@@ -137,7 +137,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           callId = event?.message?.streamSid || ''
         }
 
-        if (!isGreetingSent && callId) {
+        if (!isGreetingSent) {
           try {
             twilioTransportLayer.sendMessage({
               type: 'message',
