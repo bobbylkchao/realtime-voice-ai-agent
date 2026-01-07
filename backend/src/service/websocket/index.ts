@@ -137,16 +137,11 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
-        logger.info(
-          { streamSid: event.message.streamSid || '' },
-          '[Twilio Media Stream] Twilio message received'
-        )
-
         if (!callId) {
-          callId = event.message.streamSid || ''
+          callId = event?.message?.streamSid || ''
         }
 
-        if (!isGreetingSent) {
+        if (!isGreetingSent && callId) {
           try {
             twilioTransportLayer.sendMessage({
               type: 'message',
