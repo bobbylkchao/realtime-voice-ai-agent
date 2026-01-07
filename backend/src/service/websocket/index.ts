@@ -54,6 +54,8 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
   })
 }
 
+let isGreetingSent = false
+
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   if (process.env.TWILIO_ENABLE !== 'true') {
     logger.info('[Twilio] Skip initializing Twilio WebSocket server')
@@ -83,7 +85,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     const request = req || (ws as any).request
     const callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
     logger.info(
-      { request },
       '[Twilio Media Stream] WebSocket connection established'
     )
 
@@ -141,6 +142,33 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           { callId, message: event.data },
           '[Twilio Media Stream] Twilio message received'
         )
+
+        if (!isGreetingSent) {
+          try {
+            twilioTransportLayer.sendMessage({
+              type: 'message',
+              role: 'user',
+              content: [
+                {
+                  type: 'input_text',
+                  text: 'hi',
+                },
+              ],
+            }, {
+              triggerResponse: true,
+            })
+            logger.info(
+              { callId },
+              '[Twilio Media Stream] Greeting sent'
+            )
+            isGreetingSent = true
+          } catch (error) {
+            logger.error(
+              { error, callId },
+              '[Twilio Media Stream] Failed to send greeting'
+            )
+          }
+        }
       }
     })
 
