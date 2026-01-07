@@ -143,6 +143,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
         if (!callId) {
+          console.log(event?.message)
           callId = event?.message?.streamSid || ''
         }
 
