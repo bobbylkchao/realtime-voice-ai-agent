@@ -74,8 +74,8 @@ jobs:
           fi
           
           echo "🚀 Starting deployment..."
-          echo "📡 Connecting to $SSH_USER@$SSH_HOST"
-          echo "📂 Deploy path: $DEPLOY_PATH"
+          echo "📡 Connecting to server (SSH_USER and SSH_HOST configured)"
+          echo "📂 Deploy path configured"
           echo "🌿 Branch: $BRANCH"
           
           # Test SSH connection first
