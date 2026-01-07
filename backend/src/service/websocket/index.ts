@@ -135,6 +135,15 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       twilioWebSocket: ws,
     })
 
+    twilioTransportLayer.on('*', (event) => {
+      if (event.type === 'twilio_message') {
+        logger.info(
+          { callId, message: event.data },
+          '[Twilio Media Stream] Twilio message received'
+        )
+      }
+    })
+
     logger.info(
       { callId },
       '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
