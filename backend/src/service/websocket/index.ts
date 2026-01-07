@@ -81,7 +81,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
   wss.on('connection', (ws: WebSocket, req?: any) => {
     const request = req || (ws as any).request
-    const callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
+    let callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
+    let isGreetingSent = false
     logger.info(
       { callId, remoteAddress: request?.socket?.remoteAddress },
       '[Twilio Media Stream] WebSocket connection established'
@@ -133,6 +134,36 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     const twilioTransportLayer = new TwilioRealtimeTransportLayer({
       twilioWebSocket: ws,
+    })
+
+    twilioTransportLayer.on('*', (event) => {
+      if (event.type === 'twilio_message') {
+        if (!callId || callId === 'unknown') {
+          callId = event?.message?.streamSid || ''
+        }
+
+        if (!isGreetingSent && callId) {
+          try {
+            twilioTransportLayer.sendMessage({
+              type: 'message',
+              role: 'user',
+              content: [
+                {
+                  type: 'input_text',
+                  text: 'hi',
+                },
+              ],
+            }, {})
+            logger.info(
+              { callId },
+              '[Twilio Media Stream] Greeting sent'
+            )
+            isGreetingSent = true
+          } catch {
+            // Ignore error, will be caught by session.on('error')
+          }
+        }
+      }
     })
 
     logger.info(
