@@ -9,10 +9,11 @@ export const initTwilioHttpRoute = (app: Express) => {
 
   app.all('/incoming-call', (req, res) => {
     const mediaStreamUrl = process.env.TWILIO_WEBHOOK_URL
-
+    
     const twimlResponse = `
 <?xml version="1.0" encoding="UTF-8"?>
 <Response>
+  <Say>Hi, I'm your AI trip booking assistant. You can start talking now!</Say>
   <Connect>
     <Stream url="${mediaStreamUrl}" />
   </Connect>
