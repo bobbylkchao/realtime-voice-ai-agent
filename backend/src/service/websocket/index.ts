@@ -149,6 +149,14 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
       config: {
         audio: {
+          input: {
+            turnDetection: {
+              type: 'server_vad',
+              create_response: true,
+              interrupt_response: true,
+              silence_duration_ms: 500,
+            },
+          },
           output: {
             voice: 'verse',
           },
