@@ -54,7 +54,15 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
   })
 }
 
-let callId = ''
+const greetingRecord = new Map<string, boolean>()
+
+const isGreetingSent = (callId: string) => {
+  return greetingRecord.get(callId) || false
+}
+
+const setGreetingSent = (callId: string) => {
+  greetingRecord.set(callId, true)
+}
 
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   if (process.env.TWILIO_ENABLE !== 'true') {
@@ -82,6 +90,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   })
 
   wss.on('connection', (ws: WebSocket, req?: any) => {
+    let callId = ''
+
     logger.info(
       '[Twilio Media Stream] WebSocket connection established'
     )
@@ -133,8 +143,12 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
         if (!callId) {
+          console.log('[Twilio Media Stream] twilio_message event received')
+          callId = event?.message?.start?.callSid || ''
+        }
+
+        if (!isGreetingSent(callId)) {
           try {
-            callId = event?.message?.start?.callSid || ''
             twilioTransportLayer.sendMessage({
               type: 'message',
               role: 'user',
@@ -149,6 +163,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               { callId },
               '[Twilio Media Stream] Greeting sent'
             )
+            setGreetingSent(callId)
           } catch {
             // Ignore error, will be caught by session.on('error')
           }
@@ -309,6 +324,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
       try {
         session.close()
+        greetingRecord.delete(callId)
+        callId = ''
         logger.info({ callId }, '[Twilio Media Stream] RealtimeSession closed')
       } catch (error) {
         logger.error(
@@ -342,6 +359,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         { error, callId },
         '[Twilio Media Stream] WebSocket error occurred'
       )
+      greetingRecord.delete(callId)
+      callId = ''
     })
   })
 }
