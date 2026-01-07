@@ -139,7 +139,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
         logger.info(
-          { callId, message: event.data },
+          { event },
           '[Twilio Media Stream] Twilio message received'
         )
 
