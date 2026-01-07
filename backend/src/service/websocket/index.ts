@@ -54,8 +54,17 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
   })
 }
 
-let isGreetingSent = false
 let callId = ''
+
+const greetingRecord = new Map<string, boolean>()
+
+const isGreetingSent = (callId: string) => {
+  return greetingRecord.get(callId) || false
+}
+
+const setGreetingSent = (callId: string) => {
+  greetingRecord.set(callId, true)
+}
 
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   if (process.env.TWILIO_ENABLE !== 'true') {
@@ -137,7 +146,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           callId = event?.message?.streamSid || ''
         }
 
-        if (!isGreetingSent) {
+        if (!isGreetingSent(callId)) {
           try {
             twilioTransportLayer.sendMessage({
               type: 'message',
@@ -153,7 +162,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               { callId },
               '[Twilio Media Stream] Greeting sent'
             )
-            isGreetingSent = true
+            setGreetingSent(callId)
           } catch {
             // Ignore error, will be caught by session.on('error')
           }
