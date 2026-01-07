@@ -54,9 +54,6 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
   })
 }
 
-let isGreetingSent = false
-let callId = ''
-
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   if (process.env.TWILIO_ENABLE !== 'true') {
     logger.info('[Twilio] Skip initializing Twilio WebSocket server')
@@ -83,7 +80,10 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   })
 
   wss.on('connection', (ws: WebSocket, req?: any) => {
+    const request = req || (ws as any).request
+    const callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
     logger.info(
+      { callId, remoteAddress: request?.socket?.remoteAddress },
       '[Twilio Media Stream] WebSocket connection established'
     )
 
@@ -131,36 +131,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       twilioWebSocket: ws,
     })
 
-    twilioTransportLayer.on('*', (event) => {
-      if (event.type === 'twilio_message') {
-        if (!callId) {
-          callId = event?.message?.streamSid || ''
-        }
-
-        if (!isGreetingSent && callId) {
-          try {
-            twilioTransportLayer.sendMessage({
-              type: 'message',
-              role: 'user',
-              content: [
-                {
-                  type: 'input_text',
-                  text: 'hi',
-                },
-              ],
-            }, {})
-            logger.info(
-              { callId },
-              '[Twilio Media Stream] Greeting sent'
-            )
-            isGreetingSent = true
-          } catch {
-            // Ignore error, will be caught by session.on('error')
-          }
-        }
-      }
-    })
-
     logger.info(
       { callId },
       '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
@@ -175,14 +145,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
       config: {
         audio: {
-          input: {
-            turnDetection: {
-              type: 'server_vad',
-              create_response: true,
-              interrupt_response: true,
-              silence_duration_ms: 500,
-            },
-          },
           output: {
             voice: 'verse',
           },
