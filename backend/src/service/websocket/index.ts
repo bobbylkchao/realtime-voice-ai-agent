@@ -96,10 +96,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           // Log JSON messages to see what's being sent
           try {
             const json = JSON.parse(data)
-            logger.info(
-              { callId, event: json.event, messageType: json.type },
-              '[Twilio Media Stream] Outgoing JSON message to Twilio'
-            )
           } catch {
             logger.debug(
               { callId, message: data.substring(0, 200) },
