@@ -73,7 +73,7 @@ const createOpenAiVoiceAgentAndSession = async (
                   type: 'server_vad',
                   create_response: true,
                   interrupt_response: true,
-                  silence_duration_ms: 500,
+                  silence_duration_ms: 2000,
                 },
                 format: {
                   rate: 24000,

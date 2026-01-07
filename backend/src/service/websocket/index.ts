@@ -89,7 +89,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // For all other paths (like /realtime-voice), let Socket.IO handle it
   })
 
-  wss.on('connection', (ws: WebSocket) => {
+  wss.on('connection', async (ws: WebSocket) => {
     let callId = ''
 
     logger.info(
@@ -133,8 +133,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // IMPORTANT: Following "Speed is the name of the game" from OpenAI docs:
     // 1. Create transport layer IMMEDIATELY
     // 2. Create session IMMEDIATELY (without waiting for MCP servers)
-    // 3. Connect IMMEDIATELY
-    // 4. Connect MCP servers in background and update agent later
+    // 3. Connect IMMEDIATELY (user can start talking right away)
+    // 4. Connect MCP servers in background and update agent asynchronously
 
     const twilioTransportLayer = new TwilioRealtimeTransportLayer({
       twilioWebSocket: ws,
@@ -176,10 +176,10 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
     )
 
-    // Create agent without MCP servers initially (we'll add them later)
+    // Create agent without MCP servers initially (we'll update it later)
     const agent = frontDeskAgentForPhone([])
 
-    // Create session immediately
+    // Create session immediately (user can start talking right away)
     const session = new RealtimeSession(agent, {
       transport: twilioTransportLayer,
       model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
@@ -190,7 +190,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               type: 'server_vad',
               create_response: true,
               interrupt_response: true,
-              silence_duration_ms: 500,
+              silence_duration_ms: 2000,
             },
           },
           output: {
@@ -280,7 +280,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         ws.close()
       })
 
-    // Connect MCP servers in background (non-blocking)
+    // Connect MCP servers in background (non-blocking) and update agent when ready
     const mcpServers: MCPServerStreamableHttp[] = []
     Promise.all(
       mcpServerList.map(async (mcpServerConfig) => {
@@ -309,15 +309,41 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           )
         }
       })
-    ).then(() => {
-      // Update agent with MCP servers after they're connected
-      // Note: This might require recreating the session or updating the agent
-      // For now, MCP servers will be available through the session's MCP integration
-      logger.info(
-        { callId, mcpServerCount: mcpServers.length },
-        '[Twilio Media Stream] All MCP servers connected in background'
-      )
-    })
+    )
+      .then(() => {
+        // Update agent with MCP servers after they're connected
+        if (mcpServers.length > 0) {
+          const updatedAgent = frontDeskAgentForPhone(mcpServers)
+          session
+            .updateAgent(updatedAgent)
+            .then(() => {
+              logger.info(
+                {
+                  callId,
+                  mcpServerCount: mcpServers.length,
+                },
+                '[Twilio Media Stream] Agent updated with MCP servers successfully'
+              )
+            })
+            .catch((error) => {
+              logger.error(
+                { error, callId, mcpServerCount: mcpServers.length },
+                '[Twilio Media Stream] Failed to update agent with MCP servers'
+              )
+            })
+        } else {
+          logger.info(
+            { callId },
+            '[Twilio Media Stream] No MCP servers connected, agent remains unchanged'
+          )
+        }
+      })
+      .catch((error) => {
+        logger.error(
+          { error, callId },
+          '[Twilio Media Stream] Error during MCP server connection process'
+        )
+      })
 
     ws.on('close', async () => {
       logger.info({ callId }, '[Twilio Media Stream] WebSocket connection closed')
