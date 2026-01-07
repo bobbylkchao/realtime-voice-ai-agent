@@ -152,19 +152,14 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                   text: 'hi',
                 },
               ],
-            }, {
-              triggerResponse: true,
-            })
+            }, {})
             logger.info(
               { callId },
               '[Twilio Media Stream] Greeting sent'
             )
             isGreetingSent = true
-          } catch (error) {
-            logger.error(
-              { error, callId },
-              '[Twilio Media Stream] Failed to send greeting'
-            )
+          } catch {
+            // Ignore error, will be caught by session.on('error')
           }
         }
       }
