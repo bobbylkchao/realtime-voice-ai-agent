@@ -5,10 +5,10 @@ import { RealtimeSession } from '@openai/agents-realtime'
 import { TwilioRealtimeTransportLayer } from '@openai/agents-extensions'
 import { MCPServerStreamableHttp } from '@openai/agents'
 import { handleRealtimeVoice, VoiceSessionManager } from '../open-ai'
-import { frontDeskAgent } from '../open-ai/agents/front-desk-agent'
 import { mcpServerList } from '../mcp-server'
 import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from './types'
 import logger from '../../misc/logger'
+import { frontDeskAgentForPhone } from '../open-ai/agents/front-desk-agent-for-phone'
 
 export const initWebSocketServer = (httpServer: HttpServer) => {
   const wsServer = new Server(httpServer, {
@@ -89,7 +89,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // For all other paths (like /realtime-voice), let Socket.IO handle it
   })
 
-  wss.on('connection', (ws: WebSocket, req?: any) => {
+  wss.on('connection', (ws: WebSocket) => {
     let callId = ''
 
     logger.info(
@@ -177,7 +177,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     )
 
     // Create agent without MCP servers initially (we'll add them later)
-    const agent = frontDeskAgent([])
+    const agent = frontDeskAgentForPhone([])
 
     // Create session immediately
     const session = new RealtimeSession(agent, {
