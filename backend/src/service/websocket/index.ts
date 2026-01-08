@@ -219,27 +219,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     })
 
     session.on(
-      'tool_approval_requested',
-      (_context: unknown, _agent: unknown, approvalRequest: any) => {
-        logger.info(
-          {
-            callId,
-            toolName: approvalRequest.approvalItem.rawItem.name,
-          },
-          '[Twilio Media Stream] Tool approval requested'
-        )
-        session
-          .approve(approvalRequest.approvalItem)
-          .catch((error: unknown) =>
-            logger.error(
-              { error, callId },
-              '[Twilio Media Stream] Failed to approve tool call'
-            )
-          )
-      }
-    )
-
-    session.on(
       'mcp_tool_call_completed',
       (_context: unknown, _agent: unknown, toolCall: unknown) => {
         logger.info({ callId, toolCall }, '[Twilio Media Stream] MCP tool call completed')
