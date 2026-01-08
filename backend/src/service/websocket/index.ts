@@ -90,11 +90,14 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   })
 
   wss.on('connection', async (ws: WebSocket) => {
-    let callId = ''
+    // Use withTrace at the top level to provide tracing context for the entire WebSocket connection lifecycle
+    // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
+    withTrace('twilioWebSocketConnection', async () => {
+      let callId = ''
 
-    logger.info(
-      '[Twilio Media Stream] WebSocket connection established'
-    )
+      logger.info(
+        '[Twilio Media Stream] WebSocket connection established'
+      )
 
     // Wrap ws.send to log outgoing messages (for debugging protocol issues)
     // This helps identify what messages are being sent to Twilio
@@ -299,37 +302,30 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             }
           })
         )
-          .then(() => {
+          .then(async () => {
             // Update agent with MCP servers after they're connected
             // Session is already connected, so WebSocket is open
+            // Tracing context is already available from top-level withTrace
             if (mcpServers.length > 0) {
-              withTrace('updateAgentWithMCPServers', async () => {
-                const updatedAgent = frontDeskAgentForPhone(mcpServers)
-                try {
-                  await session.updateAgent(updatedAgent)
-                  logger.info(
-                    {
-                      callId,
-                      mcpServerCount: mcpServers.length,
-                    },
-                    '[Twilio Media Stream] Agent updated with MCP servers successfully'
-                  )
-                  
-                  // Immediately send greeting after agent is updated (optimization: no need to wait for twilio_message)
-                  sendGreetingIfReady()
-                } catch (error) {
-                  logger.error(
-                    { error, callId },
-                    '[Twilio Media Stream] Failed to update agent with MCP servers'
-                  )
-                }
-              }).catch((tracingError) => {
-                // Log tracing errors separately (non-fatal)
-                logger.warn(
-                  { tracingError, callId },
-                  '[Twilio Media Stream] Tracing error during agent update (non-fatal)'
+              const updatedAgent = frontDeskAgentForPhone(mcpServers)
+              try {
+                await session.updateAgent(updatedAgent)
+                logger.info(
+                  {
+                    callId,
+                    mcpServerCount: mcpServers.length,
+                  },
+                  '[Twilio Media Stream] Agent updated with MCP servers successfully'
                 )
-              })
+                
+                // Immediately send greeting after agent is updated (optimization: no need to wait for twilio_message)
+                sendGreetingIfReady()
+              } catch (error) {
+                logger.error(
+                  { error, callId },
+                  '[Twilio Media Stream] Failed to update agent with MCP servers'
+                )
+              }
             } else {
               logger.info(
                 { callId },
@@ -397,6 +393,13 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       )
       greetingRecord.delete(callId)
       callId = ''
+    })
+    }).catch((tracingError) => {
+      // Log tracing errors separately (non-fatal)
+      logger.warn(
+        { tracingError },
+        '[Twilio Media Stream] Tracing error during WebSocket connection (non-fatal)'
+      )
     })
   })
 }

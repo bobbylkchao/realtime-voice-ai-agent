@@ -23,7 +23,7 @@ export const frontDeskAgentForPhone = (
     9. You only serve hotel, car rental, and flight bookings.
     10. Speak English only. Do not use any other language.
     11. Currently we are testing this agent with a small number of customers. Please response as quick, fast as possible.
-    ${mcpServers.length > 0 ? '12. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings etc.' : ''}
+    ${mcpServers.length > 0 ? '12. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings, get phone session data etc.' : ''}
     `,
     tools: [
       hotelBookingAgent().asTool({
