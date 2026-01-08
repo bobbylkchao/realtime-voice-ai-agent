@@ -190,7 +190,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               type: 'server_vad',
               create_response: true,
               interrupt_response: true,
-              silence_duration_ms: 1500,
+              silence_duration_ms: 500,
             },
           },
           output: {
@@ -262,6 +262,10 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     })
 
     // Connect IMMEDIATELY (this is critical!)
+    // After session is connected, connect MCP servers and update agent
+    // Declare mcpServers in outer scope so it's accessible in ws.on('close')
+    const mcpServers: MCPServerStreamableHttp[] = []
+    
     session
       .connect({
         apiKey: openAiApiKey,
@@ -271,6 +275,77 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           { callId },
           '[Twilio Media Stream] Connected to OpenAI Realtime API immediately'
         )
+
+        // Now that session is connected, connect MCP servers and update agent
+        Promise.all(
+          mcpServerList.map(async (mcpServerConfig) => {
+            try {
+              const mcpServer = new MCPServerStreamableHttp({
+                url: mcpServerConfig.url,
+                name: mcpServerConfig.name,
+              })
+              await mcpServer.connect()
+              mcpServers.push(mcpServer)
+              logger.info(
+                {
+                  callId,
+                  mcpServerName: mcpServerConfig.name,
+                },
+                '[Twilio Media Stream] MCP server connected successfully (background)'
+              )
+            } catch (mcpError) {
+              logger.warn(
+                {
+                  mcpError,
+                  callId,
+                  mcpServerName: mcpServerConfig.name,
+                },
+                '[Twilio Media Stream] Failed to connect to MCP server (non-critical)'
+              )
+            }
+          })
+        )
+          .then(() => {
+            // Update agent with MCP servers after they're connected
+            // Session is already connected, so WebSocket is open
+            if (mcpServers.length > 0) {
+              withTrace('updateAgentWithMCPServers', async () => {
+                const updatedAgent = frontDeskAgentForPhone(mcpServers)
+                try {
+                  await session.updateAgent(updatedAgent)
+                  logger.info(
+                    {
+                      callId,
+                      mcpServerCount: mcpServers.length,
+                    },
+                    '[Twilio Media Stream] Agent updated with MCP servers successfully'
+                  )
+                } catch (error) {
+                  logger.error(
+                    { error, callId },
+                    '[Twilio Media Stream] Failed to update agent with MCP servers'
+                  )
+                }
+              }).catch((tracingError) => {
+                // Log tracing errors separately (non-fatal)
+                logger.warn(
+                  { tracingError, callId },
+                  '[Twilio Media Stream] Tracing error during agent update (non-fatal)'
+                )
+              })
+            } else {
+              logger.info(
+                { callId },
+                '[Twilio Media Stream] No MCP servers connected, agent remains unchanged'
+              )
+            }
+          })
+          .catch((error) => {
+            logger.error(
+              { error, callId },
+              '[Twilio Media Stream] Error during MCP server connection process'
+            )
+          })
       })
       .catch((error) => {
         logger.error(
@@ -278,70 +353,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           '[Twilio Media Stream] Failed to connect to OpenAI, closing connection'
         )
         ws.close()
-      })
-
-    // Connect MCP servers in background (non-blocking) and update agent when ready
-    const mcpServers: MCPServerStreamableHttp[] = []
-    Promise.all(
-      mcpServerList.map(async (mcpServerConfig) => {
-        try {
-          const mcpServer = new MCPServerStreamableHttp({
-            url: mcpServerConfig.url,
-            name: mcpServerConfig.name,
-          })
-          await mcpServer.connect()
-          mcpServers.push(mcpServer)
-          logger.info(
-            {
-              callId,
-              mcpServerName: mcpServerConfig.name,
-            },
-            '[Twilio Media Stream] MCP server connected successfully (background)'
-          )
-        } catch (mcpError) {
-          logger.warn(
-            {
-              mcpError,
-              callId,
-              mcpServerName: mcpServerConfig.name,
-            },
-            '[Twilio Media Stream] Failed to connect to MCP server (non-critical)'
-          )
-        }
-      })
-    )
-      .then(() => {
-        // Update agent with MCP servers after they're connected
-        if (mcpServers.length > 0) {
-          withTrace('updateAgentWithMCPServers', async () => {
-            const updatedAgent = frontDeskAgentForPhone(mcpServers)
-            session
-              .updateAgent(updatedAgent)
-              .then(() => {
-                logger.info(
-                  {
-                    callId,
-                    mcpServerCount: mcpServers.length,
-                  },
-                  '[Twilio Media Stream] Agent updated with MCP servers successfully'
-                )
-              })
-              .catch((error) => {
-                console.error('[Twilio Media Stream] Failed to update agent with MCP servers', error)
-              })
-          })
-        } else {
-          logger.info(
-            { callId },
-            '[Twilio Media Stream] No MCP servers connected, agent remains unchanged'
-          )
-        }
-      })
-      .catch((error) => {
-        logger.error(
-          { error, callId },
-          '[Twilio Media Stream] Error during MCP server connection process'
-        )
       })
 
     ws.on('close', async () => {
