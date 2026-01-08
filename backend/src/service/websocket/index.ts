@@ -326,10 +326,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               )
             })
             .catch((error) => {
-              logger.error(
-                { error, callId, mcpServerCount: mcpServers.length },
-                '[Twilio Media Stream] Failed to update agent with MCP servers'
-              )
+              console.error('[Twilio Media Stream] Failed to update agent with MCP servers', error)
             })
         } else {
           logger.info(
