@@ -190,7 +190,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               type: 'server_vad',
               create_response: true,
               interrupt_response: true,
-              silence_duration_ms: 2000,
+              silence_duration_ms: 1500,
             },
           },
           output: {
