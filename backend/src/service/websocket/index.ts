@@ -140,6 +140,34 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       twilioWebSocket: ws,
     })
 
+    // Helper function to send greeting if conditions are met
+    const sendGreetingIfReady = () => {
+      if (callId && !isGreetingSent(callId)) {
+        try {
+          twilioTransportLayer.sendMessage({
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'input_text',
+                text: 'hi',
+              },
+            ],
+          }, {})
+          logger.info(
+            { callId },
+            '[Twilio Media Stream] Greeting sent'
+          )
+          setGreetingSent(callId)
+        } catch (error) {
+          logger.warn(
+            { error, callId },
+            '[Twilio Media Stream] Failed to send greeting, will retry on next twilio_message'
+          )
+        }
+      }
+    }
+
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
         if (!callId) {
@@ -147,27 +175,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           callId = event?.message?.start?.callSid || ''
         }
 
-        if (!isGreetingSent(callId)) {
-          try {
-            twilioTransportLayer.sendMessage({
-              type: 'message',
-              role: 'user',
-              content: [
-                {
-                  type: 'input_text',
-                  text: 'hi',
-                },
-              ],
-            }, {})
-            logger.info(
-              { callId },
-              '[Twilio Media Stream] Greeting sent'
-            )
-            setGreetingSent(callId)
-          } catch {
-            // Ignore error, will be caught by session.on('error')
-          }
-        }
+        // Try to send greeting when twilio_message is received
+        sendGreetingIfReady()
       }
     })
 
@@ -326,6 +335,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                     },
                     '[Twilio Media Stream] Agent updated with MCP servers successfully'
                   )
+                  
+                  // Immediately send greeting after agent is updated (optimization: no need to wait for twilio_message)
+                  sendGreetingIfReady()
                 } catch (error) {
                   logger.error(
                     { error, callId },
@@ -344,6 +356,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                 { callId },
                 '[Twilio Media Stream] No MCP servers connected, agent remains unchanged'
               )
+              
+              // Even without MCP servers, send greeting immediately
+              sendGreetingIfReady()
             }
           })
           .catch((error) => {
