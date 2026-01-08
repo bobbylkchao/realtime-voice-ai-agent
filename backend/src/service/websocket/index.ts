@@ -264,6 +264,12 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // Connect IMMEDIATELY (this is critical!)
     // After session is connected, connect MCP servers and update agent
     // Declare mcpServers in outer scope so it's accessible in ws.on('close')
+    // 
+    // NOTE: This is a working version where:
+    // - Greeting voice message works correctly
+    // - Customer can hear the voice
+    // - MCP servers connect after session is established
+    // - WebSocket is guaranteed to be open before agent update
     const mcpServers: MCPServerStreamableHttp[] = []
     
     session
