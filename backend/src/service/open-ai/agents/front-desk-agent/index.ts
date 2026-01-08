@@ -4,6 +4,7 @@ import { hotelBookingAgent } from '../hotel-booking-agent'
 import { carRentalBookingAgent } from '../car-rental-booking-agent'
 import { flightBookingAgent } from '../flight-booking-agent'
 import { postBookingAgent } from '../post-booking-agent'
+import { hotelInfoSearchAgent } from '../hotel-info-search-agent'
 
 export const frontDeskAgent = (
   mcpServers: MCPServerStreamableHttp[]
@@ -37,6 +38,10 @@ export const frontDeskAgent = (
       postBookingAgent().asTool({
         toolName: 'post_booking_expert',
         toolDescription: 'Help customer with their existing bookings.',
+      }),
+      hotelInfoSearchAgent().asTool({
+        toolName: 'hotel_info_search_expert',
+        toolDescription: 'Search for hotel information for the user.',
       }),
     ],
     mcpServers: mcpServers.length > 0 ? mcpServers : [],
