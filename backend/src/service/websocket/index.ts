@@ -3,7 +3,7 @@ import { Server } from 'socket.io'
 import { WebSocketServer, WebSocket } from 'ws'
 import { RealtimeSession } from '@openai/agents-realtime'
 import { TwilioRealtimeTransportLayer } from '@openai/agents-extensions'
-import { MCPServerStreamableHttp } from '@openai/agents'
+import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
 import { handleRealtimeVoice, VoiceSessionManager } from '../open-ai'
 import { mcpServerList } from '../mcp-server'
 import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from './types'
@@ -313,21 +313,23 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       .then(() => {
         // Update agent with MCP servers after they're connected
         if (mcpServers.length > 0) {
-          const updatedAgent = frontDeskAgentForPhone(mcpServers)
-          session
-            .updateAgent(updatedAgent)
-            .then(() => {
-              logger.info(
-                {
-                  callId,
-                  mcpServerCount: mcpServers.length,
-                },
-                '[Twilio Media Stream] Agent updated with MCP servers successfully'
-              )
-            })
-            .catch((error) => {
-              console.error('[Twilio Media Stream] Failed to update agent with MCP servers', error)
-            })
+          withTrace('updateAgentWithMCPServers', async () => {
+            const updatedAgent = frontDeskAgentForPhone(mcpServers)
+            session
+              .updateAgent(updatedAgent)
+              .then(() => {
+                logger.info(
+                  {
+                    callId,
+                    mcpServerCount: mcpServers.length,
+                  },
+                  '[Twilio Media Stream] Agent updated with MCP servers successfully'
+                )
+              })
+              .catch((error) => {
+                console.error('[Twilio Media Stream] Failed to update agent with MCP servers', error)
+              })
+          })
         } else {
           logger.info(
             { callId },
