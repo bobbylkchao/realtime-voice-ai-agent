@@ -139,6 +139,33 @@ export const registerTools = (mcpServer: McpServer) => {
         }
       }
     )
+
+    mcpServer.registerTool(
+      'send-checkout-link-to-customer-via-email',
+      {
+        title: 'Send Checkout Link to Customer Via Email',
+        description: 'Send checkout link to customer via email.',
+        inputSchema: {
+          email: z.string(),
+        },
+        outputSchema: {
+          success: z.boolean(),
+        },
+      },
+      async ({ email }) => {
+        logger.info(
+          { email },
+          '[Booking MCP Server/Tool Call] Sending checkout link to customer via email'
+        )
+        const output = {
+          success: true,
+        }
+        return {
+          content: [{ type: 'text', text: JSON.stringify(output) }],
+          structuredContent: output,
+        }
+      }
+    )
   } catch (error) {
     logger.error({ error }, '[Booking MCP Server] Error registering tools')
     throw error
