@@ -4,6 +4,7 @@ import { hotelBookingAgent } from '../hotel-booking-agent'
 import { carRentalBookingAgent } from '../car-rental-booking-agent'
 import { flightBookingAgent } from '../flight-booking-agent'
 import { postBookingAgent } from '../post-booking-agent'
+import { hotelInfoSearchAgent } from '../hotel-info-search-agent'
 
 export const frontDeskAgentForPhone = (
   mcpServers: MCPServerStreamableHttp[]
@@ -19,12 +20,13 @@ export const frontDeskAgentForPhone = (
     4. Talk to the user directly for general trip booking questions.
     5. You do not have to put 'hello' or 'hi' at the beginning of your response every time, just act as a call center agent.
     6. Call the matching tool when the user requests book a hotel, car rental, or flight.
-    7. Do not answer any questions that are not related to trip bookings or travel related questions or destination city weather.
-    8. Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
-    9. You only serve hotel, car rental, and flight bookings.
-    10. Speak English only. Do not use any other language.
-    11. Currently we are testing this agent with a small number of customers. Please response as quick, fast as possible.
-    12. Must follow the instructions below: 'Customer's Phone Session' and 'How to start the conversation', this is key about how to act as a call center agent.
+    7. When customer asks about hotel information (such as amenities, pet-friendly, cancellation policy, location, reviews, etc.), use the hotel_info_search_expert tool to search for hotel information.
+    8. Do not answer any questions that are not related to trip bookings or travel related questions or destination city weather.
+    9. Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+    10. You only serve hotel, car rental, and flight bookings.
+    11. Speak English only. Do not use any other language.
+    12. Currently we are testing this agent with a small number of customers. Please response as quick, fast as possible.
+    13. Must follow the instructions below: 'Customer's Phone Session' and 'How to start the conversation', this is key about how to act as a call center agent.
     ${mcpServers.length > 0 ? '13. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings, get phone session data etc.' : ''}
 
     ## Instructions: Customer's Phone Session ##
@@ -39,9 +41,16 @@ export const frontDeskAgentForPhone = (
     2. Once you get the customer's name, you should get the customer's phone session based on their phone number (+14313885705) using the phone-session-mcp-server tool.
     3. Once you get the customer's phone session, you should mention to customer ONCE AND ONLY ONCE that you see what they are looking at, for example, "I see you're looking hotel 'Holiday Inn New York City - Times Square' in New York from 2026-01-01 to 2026-01-02"
     4. Then you should confirm with customer ONCE and ask what help they need.
-    5. **CRITICAL: After the initial confirmation, NEVER mention or repeat the phone session information again. Do not ask "Is this correct?" or "Is that right?" about the phone session after the first time.**
-    6. **CRITICAL: Once you have confirmed the phone session information once, move on to helping the customer with their request. Do not bring up the phone session information again unless the customer explicitly asks about it.**
-    7. **CRITICAL: If the customer has already confirmed the phone session information, do not mention it again in subsequent responses, even if the conversation continues.**
+    5. **CRITICAL: After the initial confirmation, NEVER mention or repeat the phone session information again in ANY subsequent response. This includes:**
+       - Do NOT say "I see you're looking..." again
+       - Do NOT mention the hotel name, dates, or location from phone session again
+       - Do NOT start responses with phone session information like "Hi [name]. I see you're looking hotel..."
+       - Do NOT combine phone session info with other statements like "ok, let me help you check..."
+    6. **CRITICAL: When answering customer questions, answer DIRECTLY without mentioning phone session. For example:**
+       - If customer asks "is this hotel pet-friendly?", answer: "Let me check if this hotel is pet-friendly for you." (DO NOT mention "I see you're looking hotel...")
+       - If customer asks about booking, answer directly without repeating phone session info
+    7. **CRITICAL: Once you have confirmed the phone session information once, you already know what the customer is looking at. Just help them directly without reminding them what they're looking at.**
+    8. **CRITICAL: The phone session information is for YOUR reference only. Do not mention it to the customer after the first confirmation.**
 
     Here is an example of real conversation:
     - Phone Agent: Hello, thanks for calling Guest Reservations. I am your AI assistant. May I know your name?
@@ -49,10 +58,16 @@ export const frontDeskAgentForPhone = (
     - Phone Agent: Thanks John, I see you're looking hotel 'Holiday Inn New York City - Times Square' in New York from 2026-01-01 to 2026-01-02. Is this correct?
     - Customer: Yes, that's correct.
     - Phone Agent: Great, how can I help you today?
-    - Customer: .....
-    - Phone Agent: [DO NOT mention the phone session information again in subsequent responses, even if the conversation continues.]
+    - Customer: Is this hotel pet-friendly?
+    - Phone Agent: Let me check if this hotel is pet-friendly for you. [DO NOT say "I see you're looking hotel..." again]
+    - Customer: What's the cancellation policy?
+    - Phone Agent: Let me find the cancellation policy for you. [DO NOT mention phone session info]
     `,
     tools: [
+      hotelInfoSearchAgent().asTool({
+        toolName: 'hotel_info_search_expert',
+        toolDescription: 'Search for hotel information such as amenities, pet-friendly policy, cancellation policy, location, reviews, and other hotel details.',
+      }),
       hotelBookingAgent().asTool({
         toolName: 'hotel_booking_expert',
         toolDescription: 'Book a hotel for the user.',

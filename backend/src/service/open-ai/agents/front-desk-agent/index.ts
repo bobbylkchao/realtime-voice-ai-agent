@@ -23,6 +23,10 @@ export const frontDeskAgent = (
     ${mcpServers.length > 0 ? '8. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings etc.' : ''}
     `,
     tools: [
+      hotelInfoSearchAgent().asTool({
+        toolName: 'hotel_info_search_expert',
+        toolDescription: 'Search for hotel information such as amenities, pet-friendly policy, cancellation policy, location, reviews, and other hotel details.',
+      }),
       hotelBookingAgent().asTool({
         toolName: 'hotel_booking_expert',
         toolDescription: 'Book a hotel for the user.',
@@ -38,10 +42,6 @@ export const frontDeskAgent = (
       postBookingAgent().asTool({
         toolName: 'post_booking_expert',
         toolDescription: 'Help customer with their existing bookings.',
-      }),
-      hotelInfoSearchAgent().asTool({
-        toolName: 'hotel_info_search_expert',
-        toolDescription: 'Search for hotel information for the user.',
       }),
     ],
     mcpServers: mcpServers.length > 0 ? mcpServers : [],
