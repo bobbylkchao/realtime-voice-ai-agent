@@ -160,9 +160,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           )
           setGreetingSent(callId)
         } catch (error) {
-          logger.warn(
-            { error, callId },
-            '[Twilio Media Stream] Failed to send greeting, will retry on next twilio_message'
+          logger.info(
+            { callId },
+            '[Twilio Media Stream] will retry on next twilio_message to send greeting'
           )
         }
       }
