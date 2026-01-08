@@ -25,6 +25,9 @@ const createOpenAiVoiceAgentAndSession = async (
       // Create MCP server connections
       for (const mcpServerConfig of mcpServerList) {
         try {
+          if (mcpServerConfig.phoneCallOnly) {
+            continue
+          }
           const mcpServer = new MCPServerStreamableHttp({
             url: mcpServerConfig.url,
             name: mcpServerConfig.name,
