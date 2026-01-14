@@ -3,12 +3,12 @@ import { Server } from 'socket.io'
 import { WebSocketServer, WebSocket } from 'ws'
 import { RealtimeSession } from '@openai/agents-realtime'
 import { TwilioRealtimeTransportLayer } from '@openai/agents-extensions'
-import { MCPServerStreamableHttp } from '@openai/agents'
+import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
 import { handleRealtimeVoice, VoiceSessionManager } from '../open-ai'
-import { frontDeskAgent } from '../open-ai/agents/front-desk-agent'
 import { mcpServerList } from '../mcp-server'
 import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from './types'
 import logger from '../../misc/logger'
+import { frontDeskAgentForPhone } from '../open-ai/agents/front-desk-agent-for-phone'
 
 export const initWebSocketServer = (httpServer: HttpServer) => {
   const wsServer = new Server(httpServer, {
@@ -54,6 +54,16 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
   })
 }
 
+const greetingRecord = new Map<string, boolean>()
+
+const isGreetingSent = (callId: string) => {
+  return greetingRecord.get(callId) || false
+}
+
+const setGreetingSent = (callId: string) => {
+  greetingRecord.set(callId, true)
+}
+
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   if (process.env.TWILIO_ENABLE !== 'true') {
     logger.info('[Twilio] Skip initializing Twilio WebSocket server')
@@ -79,13 +89,15 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // For all other paths (like /realtime-voice), let Socket.IO handle it
   })
 
-  wss.on('connection', (ws: WebSocket, req?: any) => {
-    const request = req || (ws as any).request
-    const callId = request?.headers?.['x-twilio-call-sid'] as string || 'unknown'
-    logger.info(
-      { callId, remoteAddress: request?.socket?.remoteAddress },
-      '[Twilio Media Stream] WebSocket connection established'
-    )
+  wss.on('connection', async (ws: WebSocket) => {
+    // Use withTrace at the top level to provide tracing context for the entire WebSocket connection lifecycle
+    // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
+    withTrace('twilioWebSocketConnection', async () => {
+      let callId = ''
+
+      logger.info(
+        '[Twilio Media Stream] WebSocket connection established'
+      )
 
     // Wrap ws.send to log outgoing messages (for debugging protocol issues)
     // This helps identify what messages are being sent to Twilio
@@ -96,10 +108,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           // Log JSON messages to see what's being sent
           try {
             const json = JSON.parse(data)
-            logger.info(
-              { callId, event: json.event, messageType: json.type },
-              '[Twilio Media Stream] Outgoing JSON message to Twilio'
-            )
           } catch {
             logger.debug(
               { callId, message: data.substring(0, 200) },
@@ -128,11 +136,51 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // IMPORTANT: Following "Speed is the name of the game" from OpenAI docs:
     // 1. Create transport layer IMMEDIATELY
     // 2. Create session IMMEDIATELY (without waiting for MCP servers)
-    // 3. Connect IMMEDIATELY
-    // 4. Connect MCP servers in background and update agent later
+    // 3. Connect IMMEDIATELY (user can start talking right away)
+    // 4. Connect MCP servers in background and update agent asynchronously
 
     const twilioTransportLayer = new TwilioRealtimeTransportLayer({
       twilioWebSocket: ws,
+    })
+
+    // Helper function to send greeting if conditions are met
+    const sendGreetingIfReady = () => {
+      if (callId && !isGreetingSent(callId)) {
+        try {
+          twilioTransportLayer.sendMessage({
+            type: 'message',
+            role: 'user',
+            content: [
+              {
+                type: 'input_text',
+                text: 'hi',
+              },
+            ],
+          }, {})
+          logger.info(
+            { callId },
+            '[Twilio Media Stream] Greeting sent'
+          )
+          setGreetingSent(callId)
+        } catch (error) {
+          logger.info(
+            { callId },
+            '[Twilio Media Stream] will retry on next twilio_message to send greeting'
+          )
+        }
+      }
+    }
+
+    twilioTransportLayer.on('*', (event) => {
+      if (event.type === 'twilio_message') {
+        if (!callId) {
+          console.log('[Twilio Media Stream] twilio_message event received')
+          callId = event?.message?.start?.callSid || ''
+        }
+
+        // Try to send greeting when twilio_message is received
+        sendGreetingIfReady()
+      }
     })
 
     logger.info(
@@ -140,15 +188,23 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
     )
 
-    // Create agent without MCP servers initially (we'll add them later)
-    const agent = frontDeskAgent([])
+    // Create agent without MCP servers initially (we'll update it later)
+    const agent = frontDeskAgentForPhone([])
 
-    // Create session immediately
+    // Create session immediately (user can start talking right away)
     const session = new RealtimeSession(agent, {
       transport: twilioTransportLayer,
       model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
       config: {
         audio: {
+          input: {
+            turnDetection: {
+              type: 'server_vad',
+              create_response: true,
+              interrupt_response: true,
+              silence_duration_ms: 500,
+            },
+          },
           output: {
             voice: 'verse',
           },
@@ -164,27 +220,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         `[Twilio Media Stream] Available MCP tools: ${toolNames || 'None'}`
       )
     })
-
-    session.on(
-      'tool_approval_requested',
-      (_context: unknown, _agent: unknown, approvalRequest: any) => {
-        logger.info(
-          {
-            callId,
-            toolName: approvalRequest.approvalItem.rawItem.name,
-          },
-          '[Twilio Media Stream] Tool approval requested'
-        )
-        session
-          .approve(approvalRequest.approvalItem)
-          .catch((error: unknown) =>
-            logger.error(
-              { error, callId },
-              '[Twilio Media Stream] Failed to approve tool call'
-            )
-          )
-      }
-    )
 
     session.on(
       'mcp_tool_call_completed',
@@ -218,6 +253,16 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     })
 
     // Connect IMMEDIATELY (this is critical!)
+    // After session is connected, connect MCP servers and update agent
+    // Declare mcpServers in outer scope so it's accessible in ws.on('close')
+    // 
+    // NOTE: This is a working version where:
+    // - Greeting voice message works correctly
+    // - Customer can hear the voice
+    // - MCP servers connect after session is established
+    // - WebSocket is guaranteed to be open before agent update
+    const mcpServers: MCPServerStreamableHttp[] = []
+    
     session
       .connect({
         apiKey: openAiApiKey,
@@ -227,6 +272,76 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           { callId },
           '[Twilio Media Stream] Connected to OpenAI Realtime API immediately'
         )
+
+        // Now that session is connected, connect MCP servers and update agent
+        Promise.all(
+          mcpServerList.map(async (mcpServerConfig) => {
+            try {
+              const mcpServer = new MCPServerStreamableHttp({
+                url: mcpServerConfig.url,
+                name: mcpServerConfig.name,
+              })
+              await mcpServer.connect()
+              mcpServers.push(mcpServer)
+              logger.info(
+                {
+                  callId,
+                  mcpServerName: mcpServerConfig.name,
+                },
+                '[Twilio Media Stream] MCP server connected successfully (background)'
+              )
+            } catch (mcpError) {
+              logger.warn(
+                {
+                  mcpError,
+                  callId,
+                  mcpServerName: mcpServerConfig.name,
+                },
+                '[Twilio Media Stream] Failed to connect to MCP server (non-critical)'
+              )
+            }
+          })
+        )
+          .then(async () => {
+            // Update agent with MCP servers after they're connected
+            // Session is already connected, so WebSocket is open
+            // Tracing context is already available from top-level withTrace
+            if (mcpServers.length > 0) {
+              const updatedAgent = frontDeskAgentForPhone(mcpServers)
+              try {
+                await session.updateAgent(updatedAgent)
+                logger.info(
+                  {
+                    callId,
+                    mcpServerCount: mcpServers.length,
+                  },
+                  '[Twilio Media Stream] Agent updated with MCP servers successfully'
+                )
+                
+                // Immediately send greeting after agent is updated (optimization: no need to wait for twilio_message)
+                sendGreetingIfReady()
+              } catch (error) {
+                logger.error(
+                  { error, callId },
+                  '[Twilio Media Stream] Failed to update agent with MCP servers'
+                )
+              }
+            } else {
+              logger.info(
+                { callId },
+                '[Twilio Media Stream] No MCP servers connected, agent remains unchanged'
+              )
+              
+              // Even without MCP servers, send greeting immediately
+              sendGreetingIfReady()
+            }
+          })
+          .catch((error) => {
+            logger.error(
+              { error, callId },
+              '[Twilio Media Stream] Error during MCP server connection process'
+            )
+          })
       })
       .catch((error) => {
         logger.error(
@@ -236,50 +351,13 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         ws.close()
       })
 
-    // Connect MCP servers in background (non-blocking)
-    const mcpServers: MCPServerStreamableHttp[] = []
-    Promise.all(
-      mcpServerList.map(async (mcpServerConfig) => {
-        try {
-          const mcpServer = new MCPServerStreamableHttp({
-            url: mcpServerConfig.url,
-            name: mcpServerConfig.name,
-          })
-          await mcpServer.connect()
-          mcpServers.push(mcpServer)
-          logger.info(
-            {
-              callId,
-              mcpServerName: mcpServerConfig.name,
-            },
-            '[Twilio Media Stream] MCP server connected successfully (background)'
-          )
-        } catch (mcpError) {
-          logger.warn(
-            {
-              mcpError,
-              callId,
-              mcpServerName: mcpServerConfig.name,
-            },
-            '[Twilio Media Stream] Failed to connect to MCP server (non-critical)'
-          )
-        }
-      })
-    ).then(() => {
-      // Update agent with MCP servers after they're connected
-      // Note: This might require recreating the session or updating the agent
-      // For now, MCP servers will be available through the session's MCP integration
-      logger.info(
-        { callId, mcpServerCount: mcpServers.length },
-        '[Twilio Media Stream] All MCP servers connected in background'
-      )
-    })
-
     ws.on('close', async () => {
       logger.info({ callId }, '[Twilio Media Stream] WebSocket connection closed')
 
       try {
         session.close()
+        greetingRecord.delete(callId)
+        callId = ''
         logger.info({ callId }, '[Twilio Media Stream] RealtimeSession closed')
       } catch (error) {
         logger.error(
@@ -312,6 +390,15 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       logger.error(
         { error, callId },
         '[Twilio Media Stream] WebSocket error occurred'
+      )
+      greetingRecord.delete(callId)
+      callId = ''
+    })
+    }).catch((tracingError) => {
+      // Log tracing errors separately (non-fatal)
+      logger.warn(
+        { tracingError },
+        '[Twilio Media Stream] Tracing error during WebSocket connection (non-fatal)'
       )
     })
   })

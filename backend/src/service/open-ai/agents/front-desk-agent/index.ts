@@ -4,6 +4,7 @@ import { hotelBookingAgent } from '../hotel-booking-agent'
 import { carRentalBookingAgent } from '../car-rental-booking-agent'
 import { flightBookingAgent } from '../flight-booking-agent'
 import { postBookingAgent } from '../post-booking-agent'
+import { hotelInfoSearchAgent } from '../hotel-info-search-agent'
 
 export const frontDeskAgent = (
   mcpServers: MCPServerStreamableHttp[]
@@ -22,6 +23,10 @@ export const frontDeskAgent = (
     ${mcpServers.length > 0 ? '8. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings etc.' : ''}
     `,
     tools: [
+      hotelInfoSearchAgent().asTool({
+        toolName: 'hotel_info_search_expert',
+        toolDescription: 'Search for hotel information such as amenities, pet-friendly policy, cancellation policy, location, reviews, and other hotel details.',
+      }),
       hotelBookingAgent().asTool({
         toolName: 'hotel_booking_expert',
         toolDescription: 'Book a hotel for the user.',
