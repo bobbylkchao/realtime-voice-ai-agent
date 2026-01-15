@@ -5,6 +5,7 @@ import logger from './misc/logger'
 import { initTwilioWebSocketServer, initWebSocketServer } from './service/websocket'
 import { initMcpServers } from './service/mcp-server'
 import { initTwilioHttpRoute } from './service/twilio/http-route'
+import { initAmazonConnectMediaStreamingService } from './service/amazon-connect/media-streaming'
 
 config()
 
@@ -20,8 +21,17 @@ const startServices = async () => {
 
   initTwilioHttpRoute(app)
   initWebSocketServer(httpServer)
-  initTwilioWebSocketServer(httpServer)
   initMcpServers(app, PORT)
+
+  // Support phone call from Twilio 
+  if (process.env.TWILIO_ENABLE === 'true') {
+    initTwilioWebSocketServer(httpServer)
+  }
+  
+  // Support phone call from Amazon Connect
+  if (process.env.AMAZONCONNECT_ENABLE === 'true') {
+    initAmazonConnectMediaStreamingService()
+  }
 
   httpServer.listen(PORT, () => {
     logger.info(`[Server] HTTP Server ready at: http://localhost:${PORT}`)

@@ -65,11 +65,7 @@ const setGreetingSent = (callId: string) => {
 }
 
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
-  if (process.env.TWILIO_ENABLE !== 'true') {
-    logger.info('[Twilio] Skip initializing Twilio WebSocket server')
-    return
-  }
-
+  logger.info('[Twilio] Initializing Twilio WebSocket server')
   // Use noServer option and handle upgrade manually to avoid conflicts with Socket.IO
   const wss = new WebSocketServer({
     noServer: true, // Don't automatically handle upgrade
@@ -107,7 +103,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         if (typeof data === 'string') {
           // Log JSON messages to see what's being sent
           try {
-            const json = JSON.parse(data)
+            JSON.parse(data)
           } catch {
             logger.debug(
               { callId, message: data.substring(0, 200) },
@@ -162,7 +158,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             '[Twilio Media Stream] Greeting sent'
           )
           setGreetingSent(callId)
-        } catch (error) {
+        } catch {
           logger.info(
             { callId },
             '[Twilio Media Stream] will retry on next twilio_message to send greeting'
