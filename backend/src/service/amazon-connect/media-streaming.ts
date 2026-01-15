@@ -106,6 +106,21 @@ export const initAmazonConnectMediaStreamingService = async () => {
 
   ws.on('open', () => {
     logger.info('[Amazon Connect] Connected to AWS KVS signaling channel')
+    
+    // Send periodic ping to keep connection alive (prevent 10-minute timeout)
+    const pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.ping()
+        logger.debug('[Amazon Connect] Sent ping to keep connection alive')
+      } else {
+        clearInterval(pingInterval)
+      }
+    }, 30000) // Ping every 30 seconds
+
+    // Clean up interval on close
+    ws.on('close', () => {
+      clearInterval(pingInterval)
+    })
   })
 
   ws.on('error', (error: Error & { code?: string; statusCode?: number }) => {
@@ -132,13 +147,32 @@ export const initAmazonConnectMediaStreamingService = async () => {
     }
   })
 
+  ws.on('pong', () => {
+    logger.debug('[Amazon Connect] Received pong from KVS signaling channel')
+  })
+
   ws.on('message', async (msg) => {
     try {
-      const data: KvsSignalingMessage = JSON.parse(msg.toString())
+      const rawMessage = msg.toString()
+      logger.debug(
+        { rawMessage, messageLength: rawMessage.length },
+        '[Amazon Connect] Received raw WebSocket message'
+      )
+
+      const data: KvsSignalingMessage = JSON.parse(rawMessage)
+      logger.debug(
+        { messageType: data.messageType, parsedData: data },
+        '[Amazon Connect] Parsed signaling message'
+      )
+
       await handleSignalingMessage(data, ws, kinesisVideoClient, awsKinesisVideoChannelArn)
     } catch (error) {
       logger.error(
-        { error },
+        {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          rawMessage: msg.toString().substring(0, 500), // Log first 500 chars to avoid huge logs
+        },
         '[Amazon Connect] Error handling signaling message'
       )
     }
