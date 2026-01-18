@@ -68,37 +68,58 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
   // Manually handle upgrade only for /media-stream path
   httpServer.on('upgrade', (request, socket, head) => {
-    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname
+    // Get the full URL including query string
+    // request.url should contain the full path with query string
+    const fullUrl = request.url || ''
+    const pathname = new URL(fullUrl || '/', `http://${request.headers.host || 'localhost'}`).pathname
 
     if (pathname === '/media-stream') {
-      // Extract customerPhoneNumber from URL query parameters
-      // request.url contains the path and query string (e.g., "/media-stream?customerPhoneNumber=...")
-      const requestUrl = request.url || ''
       let customerPhoneNumber = ''
 
       try {
-        // Parse query string directly - request.url format: "/media-stream?customerPhoneNumber=..."
-        const queryString = requestUrl.includes('?')
-          ? requestUrl.split('?')[1]
-          : ''
-        
-        if (queryString) {
+        // Log the full request details for debugging
+        logger.debug(
+          {
+            requestUrl: fullUrl,
+            headers: request.headers,
+            method: request.method,
+          },
+          '[Twilio Media Stream] Full request details'
+        )
+
+        // Try multiple methods to extract query parameters
+        // Method 1: Direct from request.url
+        if (fullUrl.includes('?')) {
+          const queryString = fullUrl.split('?')[1]
           const params = new URLSearchParams(queryString)
           customerPhoneNumber = params.get('customerPhoneNumber') || ''
         }
 
+        // Method 2: If not found, try parsing from full URL
+        if (!customerPhoneNumber) {
+          try {
+            const url = new URL(fullUrl, `http://${request.headers.host || 'localhost'}`)
+            customerPhoneNumber = url.searchParams.get('customerPhoneNumber') || ''
+          } catch (urlError) {
+            logger.warn(
+              { urlError, fullUrl },
+              '[Twilio Media Stream] Failed to parse URL with new URL()'
+            )
+          }
+        }
+
         // Log for debugging
-        logger.debug(
+        logger.info(
           {
-            requestUrl,
-            queryString,
+            requestUrl: fullUrl,
             customerPhoneNumber: customerPhoneNumber || 'not found',
+            pathname,
           },
           '[Twilio Media Stream] Parsed URL query parameters'
         )
       } catch (error) {
         logger.error(
-          { error, requestUrl },
+          { error, fullUrl },
           '[Twilio Media Stream] Failed to parse URL query parameters'
         )
       }
@@ -108,7 +129,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         logger.info(
           {
             customerPhoneNumber: customerPhoneNumber || 'not provided',
-            requestUrl,
+            requestUrl: fullUrl,
           },
           '[Twilio Media Stream] Establishing websocket connection to Twilio in /media-stream'
         )
@@ -185,7 +206,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       )
 
       // Extract customerPhoneNumber from WebSocket (stored during upgrade)
-      const customerPhoneNumber = (ws as any).customerPhoneNumber || ''
+      let customerPhoneNumber = (ws as any).customerPhoneNumber || ''
 
       logger.info(
         {
@@ -280,10 +301,28 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       // Listen to transport events to access raw Twilio messages (Tip #2 from docs)
       session.on('transport_event', (event) => {
         if (event.type === 'twilio_message') {
+          const message = (event as any).message
           logger.debug(
-            { message: (event as any).message },
+            { message },
             '[Twilio Media Stream] Raw Twilio message received'
           )
+
+          // Try to extract customerPhoneNumber from Twilio message if not already set
+          if (!customerPhoneNumber && message) {
+            // Twilio messages may contain caller information
+            const callerNumber = message?.event?.payload?.callerNumber ||
+                                 message?.callerNumber ||
+                                 message?.From
+            if (callerNumber) {
+              customerPhoneNumber = callerNumber
+              logger.info(
+                { customerPhoneNumber, messageType: message?.event?.event },
+                '[Twilio Media Stream] Extracted customer phone number from Twilio message'
+              )
+              // Update the stored value
+              ;(ws as any).customerPhoneNumber = customerPhoneNumber
+            }
+          }
         }
       })
 
