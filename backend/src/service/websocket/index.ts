@@ -72,14 +72,43 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     if (pathname === '/media-stream') {
       // Extract customerPhoneNumber from URL query parameters
-      const url = new URL(request.url || '', `http://${request.headers.host}`)
-      const customerPhoneNumber = url.searchParams.get('customerPhoneNumber') || ''
+      // request.url contains the path and query string (e.g., "/media-stream?customerPhoneNumber=...")
+      const requestUrl = request.url || ''
+      let customerPhoneNumber = ''
+
+      try {
+        // Parse query string directly - request.url format: "/media-stream?customerPhoneNumber=..."
+        const queryString = requestUrl.includes('?')
+          ? requestUrl.split('?')[1]
+          : ''
+        
+        if (queryString) {
+          const params = new URLSearchParams(queryString)
+          customerPhoneNumber = params.get('customerPhoneNumber') || ''
+        }
+
+        // Log for debugging
+        logger.debug(
+          {
+            requestUrl,
+            queryString,
+            customerPhoneNumber: customerPhoneNumber || 'not found',
+          },
+          '[Twilio Media Stream] Parsed URL query parameters'
+        )
+      } catch (error) {
+        logger.error(
+          { error, requestUrl },
+          '[Twilio Media Stream] Failed to parse URL query parameters'
+        )
+      }
 
       wss.handleUpgrade(request, socket, head, (ws) => {
         // Store request and customerPhoneNumber in ws for later use
         logger.info(
           {
             customerPhoneNumber: customerPhoneNumber || 'not provided',
+            requestUrl,
           },
           '[Twilio Media Stream] Establishing websocket connection to Twilio in /media-stream'
         )
