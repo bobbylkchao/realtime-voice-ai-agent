@@ -1,11 +1,11 @@
 import { Server as HttpServer } from 'http'
 import { Server } from 'socket.io'
 import { WebSocketServer, WebSocket } from 'ws'
-import { RealtimeSession } from '@openai/agents-realtime'
+import { RealtimeSession, RealtimeItem } from '@openai/agents-realtime'
 import { TwilioRealtimeTransportLayer } from '@openai/agents-extensions'
 import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
 import { handleRealtimeVoice, VoiceSessionManager } from '../open-ai'
-import { mcpServerList } from '../mcp-server'
+import { mcpServerManager } from '../mcp-server/manager'
 import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from './types'
 import logger from '../../misc/logger'
 import { frontDeskAgentForPhone } from '../open-ai/agents/front-desk-agent-for-phone'
@@ -97,6 +97,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
     withTrace('twilioWebSocketConnection', async () => {
       let callId = ''
+      let phoneNumber = ''
 
       logger.info('[Twilio Media Stream] WebSocket connection established')
 
@@ -144,9 +145,136 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         twilioWebSocket: ws,
       })
 
-      // Helper function to send greeting if conditions are met
-      const sendGreetingIfReady = () => {
-        if (callId && !isGreetingSent(callId)) {
+      // Helper function to send personalized greeting with phone session data
+      const sendPersonalizedGreeting = async (
+        session: RealtimeSession<{ history: RealtimeItem[] }>,
+        mcpServers: MCPServerStreamableHttp[]
+      ) => {
+        if (!callId || isGreetingSent(callId)) {
+          return
+        }
+
+        try {
+          // Try to get phone session data from MCP server
+          let hotelName: string | null = null
+          const phoneSessionMcpServer = mcpServers.find(
+            (server) => server.name === 'phone-session-mcp-server'
+          )
+
+          if (phoneSessionMcpServer && phoneNumber) {
+            try {
+              // Trigger tool call by sending a message to the agent
+              // The agent will call the phone session tool, and we'll listen for the result
+              logger.info(
+                { callId, phoneNumber },
+                '[Twilio Media Stream] Requesting phone session data for personalized greeting'
+              )
+
+              // Set up a one-time listener for tool call completion
+              const toolCallPromise = new Promise<{
+                hotelName: string | null
+              }>((resolve) => {
+                const timeout = setTimeout(() => {
+                  resolve({ hotelName: null })
+                }, 3000) // 3 second timeout
+
+                const toolCallHandler = (
+                  _context: unknown,
+                  _agent: unknown,
+                  toolCall: any
+                ) => {
+                  if (
+                    toolCall?.name ===
+                      'get-phone-session-based-on-phone-number' &&
+                    toolCall?.result
+                  ) {
+                    clearTimeout(timeout)
+                    session.off('mcp_tool_call_completed', toolCallHandler)
+
+                    try {
+                      const result =
+                        typeof toolCall.result === 'string'
+                          ? JSON.parse(toolCall.result)
+                          : toolCall.result
+                      const extractedHotelName =
+                        result?.hotelName || result?.structuredContent?.hotelName || null
+                      logger.info(
+                        { callId, hotelName: extractedHotelName },
+                        '[Twilio Media Stream] Phone session data retrieved'
+                      )
+                      resolve({ hotelName: extractedHotelName })
+                    } catch (parseError) {
+                      logger.warn(
+                        { error: parseError, callId },
+                        '[Twilio Media Stream] Failed to parse tool call result'
+                      )
+                      resolve({ hotelName: null })
+                    }
+                  }
+                }
+
+                session.on('mcp_tool_call_completed', toolCallHandler)
+              })
+
+              // Send a message to trigger the tool call
+              // The agent should be instructed to call the phone session tool when asked
+              twilioTransportLayer.sendMessage(
+                {
+                  type: 'message',
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'input_text',
+                      text: `Please call get-phone-session-based-on-phone-number tool with phone number ${phoneNumber}`,
+                    },
+                  ],
+                },
+                {}
+              )
+
+              // Wait for tool call result (with timeout)
+              const result = await toolCallPromise
+              hotelName = result.hotelName
+            } catch (error) {
+              logger.warn(
+                { error, callId },
+                '[Twilio Media Stream] Failed to get phone session data, using default greeting'
+              )
+            }
+          }
+
+          // Generate personalized greeting message
+          let greetingText = 'hi'
+          if (hotelName) {
+            greetingText = `Hi, thank you for calling Guest Reservations, I see you're looking at the ${hotelName}. How can I help?`
+          } else {
+            greetingText = 'Thanks for calling Guestreservation.com, how can I help you today?'
+          }
+
+          twilioTransportLayer.sendMessage(
+            {
+              type: 'message',
+              role: 'user',
+              content: [
+                {
+                  type: 'input_text',
+                  text: greetingText,
+                },
+              ],
+            },
+            {}
+          )
+          logger.info(
+            { callId, hasHotelName: !!hotelName },
+            '[Twilio Media Stream] Personalized greeting sent'
+          )
+          setGreetingSent(callId)
+        } catch (error) {
+          logger.error(
+            { error, callId },
+            '[Twilio Media Stream] Error sending personalized greeting'
+          )
+          // Fallback to default greeting
           try {
             twilioTransportLayer.sendMessage(
               {
@@ -155,18 +283,18 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                 content: [
                   {
                     type: 'input_text',
-                    text: 'hi',
+                    text: 'Thanks for calling Guestreservation.com, how can I help you today?',
                   },
                 ],
               },
               {}
             )
-            logger.info({ callId }, '[Twilio Media Stream] Greeting sent')
+            logger.info({ callId }, '[Twilio Media Stream] Default greeting sent (fallback)')
             setGreetingSent(callId)
-          } catch (error) {
-            logger.info(
-              error,
-              '[Twilio Media Stream] will retry on next twilio_message to send greeting'
+          } catch (fallbackError) {
+            logger.error(
+              { error: fallbackError, callId },
+              '[Twilio Media Stream] Error sending fallback greeting'
             )
           }
         }
@@ -176,11 +304,22 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         if (event.type === 'twilio_message') {
           if (!callId) {
             console.log('[Twilio Media Stream] twilio_message event received')
-            callId = event?.message?.start?.callSid || ''
+            const twilioMessage = event?.message as any
+            callId = twilioMessage?.start?.callSid || ''
+            // Extract phone number from Twilio message
+            // The phone number might be in different fields depending on Twilio's message structure
+            phoneNumber =
+              twilioMessage?.start?.from ||
+              twilioMessage?.start?.callerId ||
+              twilioMessage?.from ||
+              ''
+            if (phoneNumber) {
+              logger.info(
+                { callId, phoneNumber },
+                '[Twilio Media Stream] Phone number extracted from Twilio message'
+              )
+            }
           }
-
-          // Try to send greeting when twilio_message is received
-          sendGreetingIfReady()
         }
       })
 
@@ -257,95 +396,101 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       })
 
       // Connect IMMEDIATELY (this is critical!)
-      // After session is connected, connect MCP servers and update agent
-      // Declare mcpServers in outer scope so it's accessible in ws.on('close')
+      // After session is connected, use shared MCP servers and update agent
       //
-      // NOTE: This is a working version where:
-      // - Greeting voice message works correctly
-      // - Customer can hear the voice
-      // - MCP servers connect after session is established
-      // - WebSocket is guaranteed to be open before agent update
-      const mcpServers: MCPServerStreamableHttp[] = []
-
+      // NOTE: MCP servers are now shared across all sessions (initialized at server startup)
+      // This improves performance and reduces resource usage
       session
         .connect({
           apiKey: openAiApiKey,
         })
-        .then(() => {
+        .then(async () => {
           logger.info(
             { callId },
             '[Twilio Media Stream] Connected to OpenAI Realtime API immediately'
           )
 
-          // Now that session is connected, connect MCP servers and update agent
-          Promise.all(
-            mcpServerList.map(async (mcpServerConfig) => {
-              try {
-                const mcpServer = new MCPServerStreamableHttp({
-                  url: mcpServerConfig.url,
-                  name: mcpServerConfig.name,
-                })
-                await mcpServer.connect()
-                mcpServers.push(mcpServer)
-                logger.info(
-                  {
-                    callId,
-                    mcpServerName: mcpServerConfig.name,
-                  },
-                  '[Twilio Media Stream] MCP server connected successfully (background)'
-                )
-              } catch (mcpError) {
-                logger.warn(
-                  {
-                    mcpError,
-                    callId,
-                    mcpServerName: mcpServerConfig.name,
-                  },
-                  '[Twilio Media Stream] Failed to connect to MCP server (non-critical)'
-                )
-              }
-            })
-          )
-            .then(async () => {
-              // Update agent with MCP servers after they're connected
-              // Session is already connected, so WebSocket is open
-              // Tracing context is already available from top-level withTrace
-              if (mcpServers.length > 0) {
-                const updatedAgent = frontDeskAgentForPhone(mcpServers)
-                try {
-                  await session.updateAgent(updatedAgent)
-                  logger.info(
-                    {
-                      callId,
-                      mcpServerCount: mcpServers.length,
-                    },
-                    '[Twilio Media Stream] Agent updated with MCP servers successfully'
-                  )
+          // Get shared MCP servers (phone-call-only servers for Twilio)
+          const mcpServers = mcpServerManager.getMcpServers(true)
 
-                  // Immediately send greeting after agent is updated (optimization: no need to wait for twilio_message)
-                  sendGreetingIfReady()
-                } catch (error) {
-                  logger.error(
-                    { error, callId },
-                    '[Twilio Media Stream] Failed to update agent with MCP servers'
-                  )
-                }
-              } else {
-                logger.info(
-                  { callId },
-                  '[Twilio Media Stream] No MCP servers connected, agent remains unchanged'
-                )
+          if (mcpServers.length > 0) {
+            const updatedAgent = frontDeskAgentForPhone(mcpServers)
+            try {
+              await session.updateAgent(updatedAgent)
+              logger.info(
+                {
+                  callId,
+                  mcpServerCount: mcpServers.length,
+                },
+                '[Twilio Media Stream] Agent updated with MCP servers successfully'
+              )
 
-                // Even without MCP servers, send greeting immediately
-                sendGreetingIfReady()
-              }
-            })
-            .catch((error) => {
+              // Send personalized greeting after agent is updated with MCP servers
+              // This allows us to get phone session data before sending greeting
+              await sendPersonalizedGreeting(session, mcpServers)
+            } catch (error) {
               logger.error(
                 { error, callId },
-                '[Twilio Media Stream] Error during MCP server connection process'
+                '[Twilio Media Stream] Failed to update agent with MCP servers'
               )
-            })
+              // Fallback to default greeting if agent update fails
+              if (callId && !isGreetingSent(callId)) {
+                try {
+                  twilioTransportLayer.sendMessage(
+                    {
+                      type: 'message',
+                      role: 'user',
+                      content: [
+                        {
+                          type: 'input_text',
+                          text: 'Thanks for calling Guestreservation.com, how can I help you today?',
+                        },
+                      ],
+                    },
+                    {}
+                  )
+                  logger.info({ callId }, '[Twilio Media Stream] Default greeting sent (fallback)')
+                  setGreetingSent(callId)
+                } catch (fallbackError) {
+                  logger.error(
+                    { error: fallbackError, callId },
+                    '[Twilio Media Stream] Error sending fallback greeting'
+                  )
+                }
+              }
+            }
+          } else {
+            logger.info(
+              { callId },
+              '[Twilio Media Stream] No MCP servers available, agent remains unchanged'
+            )
+
+            // Even without MCP servers, send default greeting immediately
+            if (callId && !isGreetingSent(callId)) {
+              try {
+                twilioTransportLayer.sendMessage(
+                  {
+                    type: 'message',
+                    role: 'user',
+                    content: [
+                      {
+                        type: 'input_text',
+                        text: 'Thanks for calling Guestreservation.com, how can I help you today?',
+                      },
+                    ],
+                  },
+                  {}
+                )
+                logger.info({ callId }, '[Twilio Media Stream] Default greeting sent')
+                setGreetingSent(callId)
+              } catch (error) {
+                logger.error(
+                  { error, callId },
+                  '[Twilio Media Stream] Error sending default greeting'
+                )
+              }
+            }
+          }
         })
         .catch((error) => {
           logger.error(
@@ -376,24 +521,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           )
         }
 
-        // Close MCP servers
-        for (const mcpServer of mcpServers) {
-          try {
-            await mcpServer.close()
-            logger.info(
-              {
-                callId,
-                mcpServerName: mcpServer.name,
-              },
-              '[Twilio Media Stream] MCP server closed successfully'
-            )
-          } catch (error) {
-            logger.error(
-              { error, callId, mcpServerName: mcpServer.name },
-              '[Twilio Media Stream] Error closing MCP server'
-            )
-          }
-        }
+        // Note: MCP servers are shared across all sessions and managed globally
+        // They will be closed during server shutdown, not per-session
       })
 
       ws.on('error', (error) => {

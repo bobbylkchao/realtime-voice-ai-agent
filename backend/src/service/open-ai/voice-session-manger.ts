@@ -1,12 +1,11 @@
 import { RealtimeSession, TransportLayerAudio } from '@openai/agents-realtime'
-import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
+import { withTrace } from '@openai/agents'
 import { Socket } from 'socket.io'
-import { mcpServerList } from '../mcp-server'
+import { mcpServerManager } from '../mcp-server/manager'
 import logger from '../../misc/logger'
 import { frontDeskAgent } from './agents/front-desk-agent'
 
 const sessions = new Map<string, RealtimeSession>()
-const mcpServers: Map<string, MCPServerStreamableHttp[]> = new Map()
 
 const createOpenAiVoiceAgentAndSession = async (
   clientId: string,
@@ -22,38 +21,16 @@ const createOpenAiVoiceAgentAndSession = async (
         )
       }
 
-      // Create MCP server connections
-      for (const mcpServerConfig of mcpServerList) {
-        try {
-          if (mcpServerConfig.phoneCallOnly) {
-            continue
-          }
-          const mcpServer = new MCPServerStreamableHttp({
-            url: mcpServerConfig.url,
-            name: mcpServerConfig.name,
-          })
-          await mcpServer.connect()
-          mcpServers.set(clientId, [
-            ...(mcpServers.get(clientId) || []),
-            mcpServer,
-          ])
-          logger.info(
-            {
-              clientId,
-              mcpServerName: mcpServerConfig.name,
-            },
-            '[OpenAI Voice Agent] MCP server connected successfully'
-          )
-        } catch (mcpError) {
-          logger.warn(
-            {
-              mcpError,
-              clientId,
-              mcpServerName: mcpServerConfig.name,
-            },
-            '[OpenAI Voice Agent] Failed to connect to MCP server'
-          )
-        }
+      // Get shared MCP servers (non-phone-call-only servers for WebSocket sessions)
+      const mcpServers = mcpServerManager.getMcpServers(false)
+      if (mcpServers.length > 0) {
+        logger.info(
+          {
+            clientId,
+            mcpServerCount: mcpServers.length,
+          },
+          '[OpenAI Voice Agent] Using shared MCP servers'
+        )
       }
 
       /**
@@ -66,7 +43,7 @@ const createOpenAiVoiceAgentAndSession = async (
       logger.info({ clientId }, '[OpenAI Voice Agent] Creating RealtimeSession')
 
       const openAiVoiceSession = new RealtimeSession(
-        frontDeskAgent(mcpServers.get(clientId) || []),
+        frontDeskAgent(mcpServers),
         {
           model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
           config: {
@@ -229,20 +206,8 @@ export class VoiceSessionManager {
       session.close()
     }
 
-    const getMcpServers = mcpServers.get(clientId)
-    if (getMcpServers) {
-      for (const mcpServer of getMcpServers) {
-        await mcpServer.close()
-        logger.info(
-          {
-            clientId,
-            mcpServerName: mcpServer.name,
-          },
-          '[Voice Session Manager] MCP server closed successfully'
-        )
-      }
-      mcpServers.delete(clientId)
-    }
+    // Note: MCP servers are shared across all sessions and managed globally
+    // They will be closed during server shutdown, not per-session
 
     sessions.delete(clientId)
   }

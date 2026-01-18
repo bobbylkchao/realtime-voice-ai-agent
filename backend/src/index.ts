@@ -7,6 +7,7 @@ import {
   initWebSocketServer,
 } from './service/websocket'
 import { initMcpServers } from './service/mcp-server'
+import { mcpServerManager } from './service/mcp-server/manager'
 import { initTwilioHttpRoute } from './service/twilio/http-route'
 
 config()
@@ -21,10 +22,23 @@ const startServices = async () => {
   app.use(express.urlencoded({ extended: true }))
   const httpServer = createServer(app)
 
+  // Initialize MCP server HTTP endpoints first
+  initMcpServers(app, PORT)
+
+  // Initialize MCP server connections (shared across all sessions)
+  try {
+    await mcpServerManager.initialize()
+    logger.info('[Server] MCP server connections initialized successfully')
+  } catch (error) {
+    logger.error(
+      { error },
+      '[Server] Failed to initialize MCP server connections, continuing anyway'
+    )
+  }
+
   initTwilioHttpRoute(app)
   initWebSocketServer(httpServer)
   initTwilioWebSocketServer(httpServer)
-  initMcpServers(app, PORT)
 
   httpServer.listen(PORT, () => {
     logger.info(`[Server] HTTP Server ready at: http://localhost:${PORT}`)
@@ -38,6 +52,19 @@ const startServices = async () => {
       )
     }
   })
+
+  // Graceful shutdown
+  const shutdown = async () => {
+    logger.info('[Server] Shutting down gracefully...')
+    await mcpServerManager.closeAll()
+    httpServer.close(() => {
+      logger.info('[Server] HTTP server closed')
+      process.exit(0)
+    })
+  }
+
+  process.on('SIGTERM', shutdown)
+  process.on('SIGINT', shutdown)
 }
 
 try {

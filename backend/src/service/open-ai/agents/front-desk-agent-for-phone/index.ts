@@ -13,10 +13,6 @@ import { CONVERSATION_EXAMPLE } from '../instructions/conversation-example'
  * Testing purpose, do not use this agent for production.
  */
 const TESTING_TYPE = 'B2B'
-const TESTING_INSTRUCTIONS_1 = {
-  B2B: 'guestreservations.com',
-  B2C: 'priceline.com',
-}
 const TESTING_COMPANY_NAME = {
   B2B: 'Guest Reservations',
   B2C: 'Priceline',
@@ -32,7 +28,7 @@ export const frontDeskAgentForPhone = (
     ${GLOBAL_INSTRUCTIONS}
 
     ## Instructions: General Instructions ##
-    1. You are an AI phone agent for ${TESTING_INSTRUCTIONS_1[TESTING_TYPE]}
+    1. You are an AI phone agent for ${TESTING_COMPANY_NAME[TESTING_TYPE]}
     2. The reason you are here is because no phone agents are available at this moment. You will be transferred to a human agent when one is available.
     3. Talk to the user directly for general trip booking questions.
     4. COMPANY_NAME is ${TESTING_COMPANY_NAME[TESTING_TYPE]}
