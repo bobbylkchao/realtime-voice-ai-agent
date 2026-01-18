@@ -163,7 +163,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
         // Try to send greeting when twilio_message is received
-        sendGreetingIfReady(session)
+        sendGreetingIfReady()
       }
     })
 
@@ -282,7 +282,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         // Wait a bit for session to fully initialize before sending greeting
         // This ensures audio streams are ready
         setTimeout(() => {
-          sendGreetingIfReady(session)
+          sendGreetingIfReady()
         }, 500)
       })
       .catch((error) => {
