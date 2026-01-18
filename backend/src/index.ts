@@ -25,33 +25,34 @@ const startServices = async () => {
   // Initialize MCP server HTTP endpoints first
   initMcpServers(app, PORT)
 
-  // Initialize MCP server connections (shared across all sessions)
-  try {
-    await mcpServerManager.initialize()
-    logger.info('[Server] MCP server connections initialized successfully')
-  } catch (error) {
-    logger.error(
-      { error },
-      '[Server] Failed to initialize MCP server connections, continuing anyway'
-    )
-  }
-
   initTwilioHttpRoute(app)
   initWebSocketServer(httpServer)
   initTwilioWebSocketServer(httpServer)
 
-  httpServer.listen(PORT, () => {
-    logger.info(`[Server] HTTP Server ready at: http://localhost:${PORT}`)
-    logger.info(
-      `[Server] Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`
-    )
-
-    if (IS_TWILIO_ENABLE) {
+  // Start HTTP server first, then initialize MCP server connections
+  // MCP clients need the HTTP server to be listening before they can connect
+  await new Promise<void>((resolve) => {
+    httpServer.listen(PORT, () => {
+      logger.info(`[Server] HTTP Server ready at: http://localhost:${PORT}`)
       logger.info(
-        `[Server] Twilio Media Stream ready at: ${TWILIO_WEBHOOK_URL}`
+        `[Server] Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`
       )
-    }
+
+      if (IS_TWILIO_ENABLE) {
+        logger.info(
+          `[Server] Twilio Media Stream ready at: ${TWILIO_WEBHOOK_URL}`
+        )
+      }
+
+      resolve()
+    })
   })
+
+  // Initialize MCP server connections after HTTP server is listening
+  // This ensures the MCP server endpoints are available when clients try to connect
+  // If any MCP server fails to connect, the server will not start
+  await mcpServerManager.initialize()
+  logger.info('[Server] MCP server connections initialized successfully')
 
   // Graceful shutdown
   const shutdown = async () => {
@@ -67,8 +68,7 @@ const startServices = async () => {
   process.on('SIGINT', shutdown)
 }
 
-try {
-  startServices()
-} catch (err) {
+startServices().catch((err) => {
   logger.error({ err }, '[Server] Application start failed due to error')
-}
+  process.exit(1)
+})

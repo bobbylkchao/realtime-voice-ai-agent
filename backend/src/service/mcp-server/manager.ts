@@ -31,6 +31,7 @@ class McpServerManager {
   private async _initialize(): Promise<void> {
     logger.info('[MCP Server Manager] Initializing MCP server connections...')
 
+    // All MCP servers must connect successfully, or initialization fails
     const connectionPromises = mcpServerList.map(async (mcpServerConfig) => {
       try {
         const mcpServer = new MCPServerStreamableHttp({
@@ -55,18 +56,21 @@ class McpServerManager {
           },
           '[MCP Server Manager] Failed to connect to MCP server'
         )
-        // Don't throw - allow other servers to connect even if one fails
+        throw error
       }
     })
 
+    // If any MCP server fails to connect, Promise.all will reject
+    // This ensures all servers must be available for the server to start
     await Promise.all(connectionPromises)
+
     this.isInitialized = true
     logger.info(
       {
         connectedCount: this.mcpServers.size,
         totalCount: mcpServerList.length,
       },
-      '[MCP Server Manager] MCP server initialization completed'
+      '[MCP Server Manager] All MCP servers connected successfully'
     )
   }
 
