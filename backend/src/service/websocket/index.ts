@@ -124,6 +124,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           }
         } catch {
           // Ignore logging errors
+          logger.info('[Twilio Media Stream] WebSocket is connecting...')
         }
         return originalSend(data, ...args)
       }
