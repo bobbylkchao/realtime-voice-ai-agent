@@ -5,7 +5,8 @@ import logger from './misc/logger'
 import { initTwilioWebSocketServer, initWebSocketServer } from './service/websocket'
 import { initMcpServers } from './service/mcp-server'
 import { initTwilioHttpRoute } from './service/twilio/http-route'
-import { initAmazonConnectMediaStreamingService } from './service/amazon-connect/media-streaming'
+import { initAmazonConnectHttpRoute } from './service/amazon-connect/http-route'
+import { initAmazonConnectSipServer } from './service/amazon-connect/sip-server'
 
 config()
 
@@ -20,6 +21,7 @@ const startServices = async () => {
   const httpServer = createServer(app)
 
   initTwilioHttpRoute(app)
+  initAmazonConnectHttpRoute(app)
   initWebSocketServer(httpServer)
   initMcpServers(app, PORT)
 
@@ -30,7 +32,13 @@ const startServices = async () => {
   
   // Support phone call from Amazon Connect
   if (process.env.AMAZONCONNECT_ENABLE === 'true') {
-    initAmazonConnectMediaStreamingService()
+    // Initialize SIP server for External Voice Transfer
+    initAmazonConnectSipServer().catch((error) => {
+      logger.error(
+        { error },
+        '[Server] Failed to initialize Amazon Connect SIP server'
+      )
+    })
   }
 
   httpServer.listen(PORT, () => {
