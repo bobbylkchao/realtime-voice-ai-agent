@@ -179,6 +179,14 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     twilioTransportLayer.on('*', (event) => {
       console.log(`[Twilio Media Stream] twilio_message event received, event type: ${event.type}`)
+      if (event.type === 'session.created') {
+        console.log('[Twilio Media Stream] event type: session.created', { event })
+      }
+
+      if (event.type === 'session.updated') {
+        console.log('[Twilio Media Stream] event type: session.updated', { event })
+      }
+      
       if (event.type === 'twilio_message') {
         if (!callId) {
           callId = event?.message?.start?.callSid || event?.message?.stop?.callSid
