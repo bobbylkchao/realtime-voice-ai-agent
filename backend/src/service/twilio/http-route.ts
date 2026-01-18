@@ -18,11 +18,19 @@ export const initTwilioHttpRoute = (app: Express) => {
   </Connect>
 </Response>`.trim()
 
+    const callInfo = {
+      customerPhoneNumber: req.body?.Caller || '',
+      systemPhoneNumber: req.body?.Called || '',
+      customerPhoneCity: req.body?.CallerCity || '',
+      customerPhoneState: req.body?.CallerState || '',
+      customerPhoneCountry: req.body?.CallerCountry || '',
+      callSid: req.body?.CallSid || '',
+    }
+
     logger.info(
       {
         mediaStreamUrl,
-        callerId: req.body?.From || req.query?.From,
-        req: req,
+        callInfo,
       },
       '[Twilio] Incoming call received'
     )
