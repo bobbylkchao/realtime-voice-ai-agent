@@ -72,6 +72,11 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     if (pathname === '/media-stream') {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        logger.info({
+          request,
+          socket,
+          head,
+        }, '[Twilio Media Stream] Upgrading connection')
         // Store request in ws for later use
         ;(ws as any).request = request
         wss.emit('connection', ws, request)
@@ -115,10 +120,10 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       })
 
       twilioTransportLayer.on('*', (event) => {
-        logger.info(
+        /*logger.info(
           { event },
           '[Twilio Media Stream] twilioTransportLayer'
-        )
+        )*/
       })
 
       // Helper function to send greeting if not already sent
