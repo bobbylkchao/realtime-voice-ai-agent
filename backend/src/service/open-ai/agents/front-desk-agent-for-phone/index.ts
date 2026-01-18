@@ -6,8 +6,7 @@ import { flightBookingAgent } from '../flight-booking-agent'
 import { postBookingAgent } from '../post-booking-agent'
 import { hotelInfoSearchAgent } from '../hotel-info-search-agent'
 import { GLOBAL_INSTRUCTIONS } from '../instructions/global-instructions'
-import { CUSTOMER_PHONE_SESSION_INSTRUCTIONS } from '../instructions/customer-phone-session-instructions'
-import { CONVERSATION_EXAMPLE } from '../instructions/conversation-example'
+import { getFrontDeskPhoneAgentInstructions } from '../instructions/front-desk-phone-agent-instructions'
 
 /**
  * Testing purpose, do not use this agent for production.
@@ -22,38 +21,25 @@ export const COMPANY_NAME_FOR_TESTING = TESTING_COMPANY_NAME[TESTING_TYPE]
 export const frontDeskAgentForPhone = (
   mcpServers: MCPServerStreamableHttp[]
 ): RealtimeAgent<{ history: RealtimeItem[] }> => {
+  const companyName = TESTING_COMPANY_NAME[TESTING_TYPE]
+  const frontDeskInstructions = getFrontDeskPhoneAgentInstructions(companyName)
+
   return new RealtimeAgent({
     name: 'Front Desk Agent for Phone',
     voice: 'marin',
     instructions: `
     ${GLOBAL_INSTRUCTIONS}
 
-    ## Instructions: General Instructions ##
-    1. You are an AI phone agent for ${TESTING_COMPANY_NAME[TESTING_TYPE]}
-    2. The reason you are here is because no phone agents are available at this moment. You will be transferred to a human agent when one is available.
-    3. Talk to the user directly for general trip booking questions.
-    4. COMPANY_NAME is ${TESTING_COMPANY_NAME[TESTING_TYPE]}
-    5. Call the matching tool when the user requests book a hotel, car rental, or flight.
-    6. **CRITICAL: When you need to call a tool (hotel_info_search_expert, hotel_booking_expert, etc.), you MUST first give the customer an immediate acknowledgment before calling the tool. This is essential for good user experience.**
-    7. **Tool Call Protocol - CRITICAL FOR USER EXPERIENCE:**
-       - When you need to call ANY tool, you MUST follow this exact sequence:
-       - Step 1: In your FIRST response, immediately acknowledge with a brief message like "Sure, let me check that for you" or "Of course, let me look that up for you" or "One moment, please" or "Let me find that information for you"
-       - Step 2: In the SAME response, call the appropriate tool (do not wait for another turn)
-       - Step 3: In your NEXT response (after tool returns), provide the complete answer based on the tool result
-       - This two-step process ensures customers hear an immediate acknowledgment, preventing them from wondering if the system is frozen
-       - NEVER call a tool silently without first acknowledging the customer's request
-    8. When customer asks about hotel information (such as amenities, pet-friendly, cancellation policy, location, reviews, etc.), use the hotel_info_search_expert tool. The tool has predefined hotel information and will answer immediately - no internet search is needed.
-    9. Do not answer any questions that are not related to trip bookings or travel related questions or destination city weather.
-    10. Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
-    11. You only serve hotel, car rental, and flight bookings.
-    12. Speak English only. Do not use any other language.
-    13. Currently we are testing this agent with a small number of customers. Please response as quick, fast as possible.
-    14. Must follow the instructions below: 'Customer's Phone Session' and 'How to start the conversation', this is key about how to act as a call center agent.
-    ${mcpServers.length > 0 ? '15. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings, get phone session data etc.' : ''}
+    ${frontDeskInstructions}
 
-    ${CUSTOMER_PHONE_SESSION_INSTRUCTIONS}
-    
-    ${CONVERSATION_EXAMPLE}
+    ${mcpServers.length > 0 ? `
+    ## Additional Tools Available ##
+    You have access to additional tools through MCP servers for:
+    - Searching hotels, car rentals, and flights
+    - Getting weather information for destination cities
+    - Canceling existing bookings
+    - Getting phone session data (use phone-session-mcp-server at conversation start)
+    ` : ''}
     `,
     tools: [
       hotelInfoSearchAgent().asTool({

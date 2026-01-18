@@ -94,26 +94,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // This helps identify what messages are being sent to Twilio
     const originalSend = ws.send.bind(ws)
     ws.send = function(data: any, ...args: any[]) {
-      try {
-        if (typeof data === 'string') {
-          // Log JSON messages to see what's being sent
-          try {
-            JSON.parse(data)
-          } catch {
-            logger.debug(
-              { message: data.substring(0, 200) },
-              '[Twilio Media Stream] Outgoing text message to Twilio'
-            )
-          }
-        } else if (Buffer.isBuffer(data)) {
-          logger.debug(
-            { dataLength: data.length },
-            '[Twilio Media Stream] Outgoing binary data to Twilio'
-          )
-        }
-      } catch {
-        // Ignore logging errors
-      }
       return originalSend(data, ...args)
     }
 
@@ -157,12 +137,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       }
     }
 
-    twilioTransportLayer.on('*', (event) => {
-      if (event.type === 'twilio_message') {
-        // Try to send greeting when twilio_message is received
-        sendGreetingIfReady()
-      }
-    })
+    // Remove greeting trigger from twilio_message event to avoid race condition
+    // Greeting will be sent only when connection is fully established
 
     logger.info(
       '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
@@ -275,12 +251,11 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           { mcpServerCount: mcpServers.length },
           '[Twilio Media Stream] Connected to OpenAI Realtime API immediately'
         )
-
-        // Wait a bit for session to fully initialize before sending greeting
-        // This ensures audio streams are ready
+        // Wait for audio streams to be fully ready before sending greeting
+        // Increased delay to ensure audio output channel is established
         setTimeout(() => {
           sendGreetingIfReady()
-        }, 500)
+        }, 800)
       })
       .catch((error) => {
         logger.error(
