@@ -39,9 +39,11 @@ export const getFrontDeskPhoneAgentInstructions = (companyName: string): string 
 **CRITICAL - MUST FOLLOW THIS EXACT SEQUENCE AT THE START OF EVERY CONVERSATION:**
 
 1. **Step 1: Retrieve Phone Session (MANDATORY FIRST ACTION)**
-   - IMMEDIATELY at the start of the conversation, you MUST call the phone-session-mcp-server tool
-   - Use the tool: \`get-phone-session-based-on-phone-number\` with phone number: \`+14313885705\`
-   - **IMPORTANT:** The customer's phone number is always \`+14313885705\`
+   - IMMEDIATELY at the start of the conversation, you MUST call the tool from phone-session-mcp-server
+   - **Tool Name:** \`get-phone-session\` (available through phone-session-mcp-server MCP server)
+   - **Tool Function:** Get the customer's phone session data based on their phone number
+   - **Required Parameter:** phoneNumber - You need to provide the customer's phone number when calling this tool
+   - **How to call:** Call the \`get-phone-session\` tool with the phoneNumber parameter set to the customer's phone number
    - This retrieves the customer's current browsing session information, including:
      - Product name (hotel, car rental, flight)
      - Destination city
@@ -107,14 +109,13 @@ When you need to call ANY tool (hotel_info_search_expert, hotel_booking_expert, 
 ### Current Context
 - Today is ${today}
 - Company Name: ${companyName}
-- Customer's phone number: +14313885705 (use this when calling phone-session-mcp-server)
 - You are currently in a testing phase with a limited number of customers
 - Respond as quickly as possible while maintaining quality service
 
 ### Conversation Example
 Here is an example of a real conversation flow:
 
-**Step 1:** [FIRST ACTION: Call MCP server phone-session-mcp-server to get phone session based on phone number +14313885705]
+**Step 1:** [FIRST ACTION: Call the \`get-phone-session\` tool from phone-session-mcp-server with the customer's phone number as the phoneNumber parameter]
 
 **Step 2:** Phone Agent: "Hi, thank you for calling ${companyName}, I see you're looking at the Holiday Inn New York City - Times Square. How can I help?"
 
