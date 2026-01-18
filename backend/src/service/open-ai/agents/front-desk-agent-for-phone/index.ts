@@ -17,6 +17,7 @@ const TESTING_COMPANY_NAME = {
   B2B: 'Guest Reservations',
   B2C: 'Priceline',
 }
+export const COMPANY_NAME_FOR_TESTING = TESTING_COMPANY_NAME[TESTING_TYPE]
 
 export const frontDeskAgentForPhone = (
   mcpServers: MCPServerStreamableHttp[]

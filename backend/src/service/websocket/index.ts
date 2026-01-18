@@ -8,7 +8,7 @@ import { handleRealtimeVoice, VoiceSessionManager } from '../open-ai'
 import { mcpServerManager } from '../mcp-server/manager'
 import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from './types'
 import logger from '../../misc/logger'
-import { frontDeskAgentForPhone } from '../open-ai/agents/front-desk-agent-for-phone'
+import { COMPANY_NAME_FOR_TESTING, frontDeskAgentForPhone } from '../open-ai/agents/front-desk-agent-for-phone'
 
 export const initWebSocketServer = (httpServer: HttpServer) => {
   const wsServer = new Server(httpServer, {
@@ -162,6 +162,16 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             (server) => server.name === 'phone-session-mcp-server'
           )
 
+          logger.info(
+            {
+              callId,
+              phoneNumber: phoneNumber || 'NOT_EXTRACTED',
+              hasPhoneSessionMcpServer: !!phoneSessionMcpServer,
+              mcpServerNames: mcpServers.map((s) => s.name),
+            },
+            '[Twilio Media Stream] Checking conditions for personalized greeting'
+          )
+
           if (phoneSessionMcpServer && phoneNumber) {
             try {
               // Trigger tool call by sending a message to the agent
@@ -236,10 +246,36 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               // Wait for tool call result (with timeout)
               const result = await toolCallPromise
               hotelName = result.hotelName
+              if (!hotelName) {
+                logger.warn(
+                  { callId, phoneNumber },
+                  '[Twilio Media Stream] Phone session data retrieved but hotelName is null (timeout or no data)'
+                )
+              }
             } catch (error) {
               logger.warn(
-                { error, callId },
+                { error, callId, phoneNumber },
                 '[Twilio Media Stream] Failed to get phone session data, using default greeting'
+              )
+            }
+          } else {
+            if (!phoneSessionMcpServer) {
+              logger.warn(
+                {
+                  callId,
+                  phoneNumber: phoneNumber || 'NOT_EXTRACTED',
+                  availableMcpServers: mcpServers.map((s) => s.name),
+                },
+                '[Twilio Media Stream] Phone session MCP server not found, using default greeting'
+              )
+            }
+            if (!phoneNumber) {
+              logger.warn(
+                {
+                  callId,
+                  hasPhoneSessionMcpServer: !!phoneSessionMcpServer,
+                },
+                '[Twilio Media Stream] Phone number not extracted, using default greeting'
               )
             }
           }
@@ -247,9 +283,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           // Generate personalized greeting message
           let greetingText = 'hi'
           if (hotelName) {
-            greetingText = `Hi, thank you for calling Guest Reservations, I see you're looking at the ${hotelName}. How can I help?`
+            greetingText = `Hi, thank you for calling ${COMPANY_NAME_FOR_TESTING}, I see you're looking at the ${hotelName}. How can I help?`
           } else {
-            greetingText = 'Thanks for calling Guestreservation.com, how can I help you today?'
+            greetingText = `Thanks for calling ${COMPANY_NAME_FOR_TESTING}, how can I help you today?`
           }
 
           twilioTransportLayer.sendMessage(
@@ -318,6 +354,14 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               logger.info(
                 { callId, phoneNumber },
                 '[Twilio Media Stream] Phone number extracted from Twilio message'
+              )
+            } else {
+              logger.warn(
+                {
+                  callId,
+                  twilioMessage: JSON.stringify(twilioMessage, null, 2),
+                },
+                '[Twilio Media Stream] Phone number not found in Twilio message, checking available fields'
               )
             }
           }
