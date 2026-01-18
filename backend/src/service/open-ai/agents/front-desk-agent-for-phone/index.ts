@@ -49,7 +49,13 @@ export const frontDeskAgentForPhone = (
     12. Speak English only. Do not use any other language.
     13. Currently we are testing this agent with a small number of customers. Please response as quick, fast as possible.
     14. Must follow the instructions below: 'Customer's Phone Session' and 'How to start the conversation', this is key about how to act as a call center agent.
-    ${mcpServers.length > 0 ? '15. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings, get phone session data etc.' : ''}
+    15. **CRITICAL: SYSTEM_INTERNAL messages - When you receive a message starting with "SYSTEM_INTERNAL:", you MUST:**
+       - Call the requested tool immediately without any verbal response
+       - Do NOT speak or acknowledge the request
+       - Do NOT say anything like "Sure", "Let me", "One moment", etc.
+       - Just call the tool silently and wait for the result
+       - This is for internal system operations, not customer interaction
+    ${mcpServers.length > 0 ? '16. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings, get phone session data etc.' : ''}
 
     ${CUSTOMER_PHONE_SESSION_INSTRUCTIONS}
     

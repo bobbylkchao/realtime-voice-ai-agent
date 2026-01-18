@@ -95,10 +95,12 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   wss.on('connection', async (ws: WebSocket) => {
     // Use withTrace at the top level to provide tracing context for the entire WebSocket connection lifecycle
     // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
-    withTrace('twilioWebSocketConnection', async () => {
-      let callId = ''
+      withTrace('twilioWebSocketConnection', async () => {
+        let callId = ''
+        // Hard code phone number for testing (Twilio doesn't provide it in WebSocket messages)
+        const phoneNumber = '+14313885705'
 
-      logger.info('[Twilio Media Stream] WebSocket connection established')
+        logger.info('[Twilio Media Stream] WebSocket connection established')
 
       // Wrap ws.send to log outgoing messages (for debugging protocol issues)
       // This helps identify what messages are being sent to Twilio
@@ -172,10 +174,10 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
           if (phoneSessionMcpServer) {
             try {
-              // Trigger tool call by sending a message to the agent
-              // The agent will call the phone session tool, and we'll listen for the result
+              // Set up listener for tool call completion BEFORE sending message
+              // This ensures we catch the tool call result
               logger.info(
-                { callId },
+                { callId, phoneNumber },
                 '[Twilio Media Stream] Requesting phone session data for personalized greeting'
               )
 
@@ -184,37 +186,57 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                 hotelName: string | null
               }>((resolve) => {
                 const timeout = setTimeout(() => {
+                  logger.warn(
+                    { callId, phoneNumber },
+                    '[Twilio Media Stream] Tool call timeout after 5 seconds'
+                  )
+                  session.off('mcp_tool_call_completed', toolCallHandler)
                   resolve({ hotelName: null })
-                }, 3000) // 3 second timeout
+                }, 5000) // 5 second timeout
 
                 const toolCallHandler = (
                   _context: unknown,
                   _agent: unknown,
                   toolCall: any
                 ) => {
+                  logger.info(
+                    { callId, toolCallName: toolCall?.name, hasResult: !!toolCall?.result },
+                    '[Twilio Media Stream] MCP tool call completed event received'
+                  )
+
                   if (
                     toolCall?.name ===
-                      'get-phone-session-based-on-phone-number' &&
-                    toolCall?.result
+                      'get-phone-session-based-on-phone-number'
                   ) {
                     clearTimeout(timeout)
                     session.off('mcp_tool_call_completed', toolCallHandler)
 
                     try {
-                      const result =
-                        typeof toolCall.result === 'string'
-                          ? JSON.parse(toolCall.result)
-                          : toolCall.result
+                      let result: any = null
+                      if (toolCall?.result) {
+                        result =
+                          typeof toolCall.result === 'string'
+                            ? JSON.parse(toolCall.result)
+                            : toolCall.result
+                      } else if (toolCall?.structuredContent) {
+                        result = toolCall.structuredContent
+                      }
+
+                      logger.info(
+                        { callId, result },
+                        '[Twilio Media Stream] Tool call result received'
+                      )
+
                       const extractedHotelName =
                         result?.hotelName || result?.structuredContent?.hotelName || null
                       logger.info(
-                        { callId, hotelName: extractedHotelName },
+                        { callId, hotelName: extractedHotelName, resultKeys: result ? Object.keys(result) : [] },
                         '[Twilio Media Stream] Phone session data retrieved'
                       )
                       resolve({ hotelName: extractedHotelName })
                     } catch (parseError) {
                       logger.warn(
-                        { error: parseError, callId },
+                        { error: parseError, callId, toolCall },
                         '[Twilio Media Stream] Failed to parse tool call result'
                       )
                       resolve({ hotelName: null })
@@ -226,7 +248,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               })
 
               // Send a message to trigger the tool call
-              // The agent should be instructed to call the phone session tool when asked
+              // Use a special format that agent instructions will recognize as internal/system call
               twilioTransportLayer.sendMessage(
                 {
                   type: 'message',
@@ -234,7 +256,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                   content: [
                     {
                       type: 'input_text',
-                      text: 'Please call get-phone-session-based-on-phone-number tool',
+                      text: `SYSTEM_INTERNAL: Call get-phone-session-based-on-phone-number tool with phone number ${phoneNumber}. Do not speak, only call the tool silently.`,
                     },
                   ],
                 },
@@ -246,13 +268,13 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               hotelName = result.hotelName
               if (!hotelName) {
                 logger.warn(
-                  { callId },
+                  { callId, phoneNumber },
                   '[Twilio Media Stream] Phone session data retrieved but hotelName is null (timeout or no data)'
                 )
               }
             } catch (error) {
               logger.warn(
-                { error, callId },
+                { error, callId, phoneNumber },
                 '[Twilio Media Stream] Failed to get phone session data, using default greeting'
               )
             }
