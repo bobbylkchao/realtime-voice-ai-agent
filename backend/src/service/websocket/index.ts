@@ -98,7 +98,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         if (typeof data === 'string') {
           // Log JSON messages to see what's being sent
           try {
-            const json = JSON.parse(data)
+            JSON.parse(data)
           } catch {
             logger.debug(
               { message: data.substring(0, 200) },
@@ -152,7 +152,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           greetingSent = true
         } catch (error) {
           logger.info(
-            '[Twilio Media Stream] will retry on next twilio_message to send greeting'
+            '[Twilio Media Stream] No ready to send greeting'
           )
         }
       }
