@@ -150,7 +150,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           }, {})
           logger.info('[Twilio Media Stream] Greeting sent')
           greetingSent = true
-        } catch (error) {
+        } catch {
           logger.info(
             '[Twilio Media Stream] No ready to send greeting'
           )
