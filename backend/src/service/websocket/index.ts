@@ -178,10 +178,11 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     }
 
     twilioTransportLayer.on('*', (event) => {
+      console.log(`[Twilio Media Stream] twilio_message event received, event type: ${event.type}`)
       if (event.type === 'twilio_message') {
         if (!callId) {
+          callId = event?.message?.start?.callSid || event?.message?.stop?.callSid
           console.log('[Twilio Media Stream] twilio_message event received', { eventMessage: event?.message })
-          callId = event?.message?.start?.callSid || ''
         }
 
         // Try to send greeting when twilio_message is received
