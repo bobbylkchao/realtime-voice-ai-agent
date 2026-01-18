@@ -54,15 +54,6 @@ export const initWebSocketServer = (httpServer: HttpServer) => {
   })
 }
 
-const greetingRecord = new Map<string, boolean>()
-
-const isGreetingSent = (callId: string) => {
-  return greetingRecord.get(callId) || false
-}
-
-const setGreetingSent = (callId: string) => {
-  greetingRecord.set(callId, true)
-}
 
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   if (process.env.TWILIO_ENABLE !== 'true') {
@@ -93,7 +84,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // Use withTrace at the top level to provide tracing context for the entire WebSocket connection lifecycle
     // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
     withTrace('twilioWebSocketConnection', async () => {
-      let callId = ''
+      let greetingSent = false
 
       logger.info(
         '[Twilio Media Stream] WebSocket connection established'
@@ -110,13 +101,13 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             const json = JSON.parse(data)
           } catch {
             logger.debug(
-              { callId, message: data.substring(0, 200) },
+              { message: data.substring(0, 200) },
               '[Twilio Media Stream] Outgoing text message to Twilio'
             )
           }
         } else if (Buffer.isBuffer(data)) {
           logger.debug(
-            { callId, dataLength: data.length },
+            { dataLength: data.length },
             '[Twilio Media Stream] Outgoing binary data to Twilio'
           )
         }
@@ -128,7 +119,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     const openAiApiKey = process.env.OPENAI_API_KEY
     if (!openAiApiKey) {
-      logger.error({ callId }, '[Twilio Media Stream] OpenAI API key missing')
+      logger.error('[Twilio Media Stream] OpenAI API key missing')
       ws.close()
       return
     }
@@ -143,15 +134,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       twilioWebSocket: ws,
     })
 
-    // Helper function to send greeting if conditions are met
+    // Helper function to send greeting if not already sent
     const sendGreetingIfReady = () => {
-      // DEBUG purpose
-      logger.info(
-        { callId },
-        '[Twilio Media Stream] Sending greeting if ready'
-      )
-
-      if (callId && !isGreetingSent(callId)) {
+      if (!greetingSent) {
         try {
           twilioTransportLayer.sendMessage({
             type: 'message',
@@ -163,14 +148,10 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               },
             ],
           }, {})
-          logger.info(
-            { callId },
-            '[Twilio Media Stream] Greeting sent'
-          )
-          setGreetingSent(callId)
+          logger.info('[Twilio Media Stream] Greeting sent')
+          greetingSent = true
         } catch (error) {
           logger.info(
-            { callId },
             '[Twilio Media Stream] will retry on next twilio_message to send greeting'
           )
         }
@@ -178,28 +159,13 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     }
 
     twilioTransportLayer.on('*', (event) => {
-      console.log(`[Twilio Media Stream] twilio_message event received, event type: ${event.type}`)
-      if (event.type === 'session.created') {
-        console.log('[Twilio Media Stream] event type: session.created', { event })
-      }
-
-      if (event.type === 'session.updated') {
-        console.log('[Twilio Media Stream] event type: session.updated', { event })
-      }
-      
       if (event.type === 'twilio_message') {
-        if (!callId) {
-          callId = event?.message?.start?.callSid || event?.message?.stop?.callSid
-          console.log('[Twilio Media Stream] twilio_message event received', { eventMessage: event?.message })
-        }
-
         // Try to send greeting when twilio_message is received
         sendGreetingIfReady()
       }
     })
 
     logger.info(
-      { callId },
       '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
     )
 
@@ -233,7 +199,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     session.on('mcp_tools_changed', (tools: { name: string }[]) => {
       const toolNames = tools.map((tool) => tool.name).join(', ')
       logger.info(
-        { callId, toolNames },
+        { toolNames },
         `[Twilio Media Stream] Available MCP tools: ${toolNames || 'None'}`
       )
     })
@@ -241,20 +207,20 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     session.on(
       'mcp_tool_call_completed',
       (_context: unknown, _agent: unknown, toolCall: unknown) => {
-        logger.info({ callId, toolCall }, '[Twilio Media Stream] MCP tool call completed')
+        logger.info({ toolCall }, '[Twilio Media Stream] MCP tool call completed')
       }
     )
 
     session.on('error', (error) => {
       logger.error(
-        { error, callId },
+        { error },
         '[Twilio Media Stream] Session error occurred'
       )
     })
 
     session.on('connection_change', (status) => {
       logger.info(
-        { status, callId },
+        { status },
         '[Twilio Media Stream] Connection status changed'
       )
     })
@@ -263,7 +229,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     session.on('transport_event', (event) => {
       if (event.type === 'twilio_message') {
         logger.debug(
-          { callId, message: (event as any).message },
+          { message: (event as any).message },
           '[Twilio Media Stream] Raw Twilio message received'
         )
       }
@@ -280,7 +246,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       })
       .then(() => {
         logger.info(
-          { callId, mcpServerCount: mcpServers.length },
+          { mcpServerCount: mcpServers.length },
           '[Twilio Media Stream] Connected to OpenAI Realtime API immediately'
         )
 
@@ -290,23 +256,21 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       })
       .catch((error) => {
         logger.error(
-          { error, callId },
+          { error },
           '[Twilio Media Stream] Failed to connect to OpenAI, closing connection'
         )
         ws.close()
       })
 
     ws.on('close', async () => {
-      logger.info({ callId }, '[Twilio Media Stream] WebSocket connection closed')
+      logger.info('[Twilio Media Stream] WebSocket connection closed')
 
       try {
         session.close()
-        greetingRecord.delete(callId)
-        callId = ''
-        logger.info({ callId }, '[Twilio Media Stream] RealtimeSession closed')
+        logger.info('[Twilio Media Stream] RealtimeSession closed')
       } catch (error) {
         logger.error(
-          { error, callId },
+          { error },
           '[Twilio Media Stream] Error closing RealtimeSession'
         )
       }
@@ -317,11 +281,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     ws.on('error', (error) => {
       logger.error(
-        { error, callId },
+        { error },
         '[Twilio Media Stream] WebSocket error occurred'
       )
-      greetingRecord.delete(callId)
-      callId = ''
     })
     }).catch((tracingError) => {
       // Log tracing errors separately (non-fatal)
