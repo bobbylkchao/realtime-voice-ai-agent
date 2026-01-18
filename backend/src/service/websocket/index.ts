@@ -71,6 +71,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // Get the full URL including query string
     // request.url should contain the full path with query string
     const fullUrl = request.url || ''
+    console.log('fullUrl', fullUrl)
     const pathname = new URL(fullUrl || '/', `http://${request.headers.host || 'localhost'}`).pathname
 
     if (pathname === '/media-stream') {
