@@ -1,4 +1,7 @@
-export const getFrontDeskPhoneAgentInstructions = (companyName: string): string => {
+export const getFrontDeskPhoneAgentInstructions = (
+  companyName: string,
+  customerPhoneNumber?: string
+): string => {
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -42,8 +45,9 @@ export const getFrontDeskPhoneAgentInstructions = (companyName: string): string 
    - IMMEDIATELY at the start of the conversation, you MUST call the tool from phone-session-mcp-server
    - **Tool Name:** \`get-phone-session\` (available through phone-session-mcp-server MCP server)
    - **Tool Function:** Get the customer's phone session data based on their phone number
-   - **Required Parameter:** phoneNumber - You need to provide the customer's phone number when calling this tool
-   - **How to call:** Call the \`get-phone-session\` tool with the phoneNumber parameter set to the customer's phone number
+   - **Required Parameter:** phoneNumber${customerPhoneNumber ? ` = \`${customerPhoneNumber}\`` : ' - You need to provide the customer\'s phone number when calling this tool'}
+   ${customerPhoneNumber ? `- **IMPORTANT:** The customer's phone number is \`${customerPhoneNumber}\`` : ''}
+   - **How to call:** Call the \`get-phone-session\` tool with the phoneNumber parameter${customerPhoneNumber ? ` set to \`${customerPhoneNumber}\`` : ' set to the customer\'s phone number'}
    - This retrieves the customer's current browsing session information, including:
      - Product name (hotel, car rental, flight)
      - Destination city
@@ -109,13 +113,14 @@ When you need to call ANY tool (hotel_info_search_expert, hotel_booking_expert, 
 ### Current Context
 - Today is ${today}
 - Company Name: ${companyName}
+${customerPhoneNumber ? `- Customer's phone number: ${customerPhoneNumber} (use this when calling phone-session-mcp-server)` : ''}
 - You are currently in a testing phase with a limited number of customers
 - Respond as quickly as possible while maintaining quality service
 
 ### Conversation Example
 Here is an example of a real conversation flow:
 
-**Step 1:** [FIRST ACTION: Call the \`get-phone-session\` tool from phone-session-mcp-server with the customer's phone number as the phoneNumber parameter]
+**Step 1:** [FIRST ACTION: Call the \`get-phone-session\` tool from phone-session-mcp-server with phoneNumber${customerPhoneNumber ? ` = ${customerPhoneNumber}` : ' = the customer\'s phone number'}]
 
 **Step 2:** Phone Agent: "Hi, thank you for calling ${companyName}, I see you're looking at the Holiday Inn New York City - Times Square. How can I help?"
 

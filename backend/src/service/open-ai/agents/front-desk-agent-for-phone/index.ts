@@ -19,10 +19,14 @@ const TESTING_COMPANY_NAME = {
 export const COMPANY_NAME_FOR_TESTING = TESTING_COMPANY_NAME[TESTING_TYPE]
 
 export const frontDeskAgentForPhone = (
-  mcpServers: MCPServerStreamableHttp[]
+  mcpServers: MCPServerStreamableHttp[],
+  customerPhoneNumber?: string
 ): RealtimeAgent<{ history: RealtimeItem[] }> => {
   const companyName = TESTING_COMPANY_NAME[TESTING_TYPE]
-  const frontDeskInstructions = getFrontDeskPhoneAgentInstructions(companyName)
+  const frontDeskInstructions = getFrontDeskPhoneAgentInstructions(
+    companyName,
+    customerPhoneNumber
+  )
 
   return new RealtimeAgent({
     name: 'Front Desk Agent for Phone',

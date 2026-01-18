@@ -8,7 +8,14 @@ export const initTwilioHttpRoute = (app: Express) => {
   }
 
   app.all('/incoming-call', (req, res) => {
-    const mediaStreamUrl = process.env.TWILIO_WEBHOOK_URL
+    const baseMediaStreamUrl = process.env.TWILIO_WEBHOOK_URL
+    const customerPhoneNumber = req.body?.Caller || req.query?.From || ''
+
+    // Add customerPhoneNumber as query parameter to the Stream URL
+    // This allows us to pass it to the WebSocket connection
+    const mediaStreamUrl = customerPhoneNumber
+      ? `${baseMediaStreamUrl}?customerPhoneNumber=${encodeURIComponent(customerPhoneNumber)}`
+      : baseMediaStreamUrl
 
     const twimlResponse = `
 <?xml version="1.0" encoding="UTF-8"?>
@@ -19,7 +26,7 @@ export const initTwilioHttpRoute = (app: Express) => {
 </Response>`.trim()
 
     const callInfo = {
-      customerPhoneNumber: req.body?.Caller || '',
+      customerPhoneNumber,
       systemPhoneNumber: req.body?.Called || '',
       customerPhoneCity: req.body?.CallerCity || '',
       customerPhoneState: req.body?.CallerState || '',

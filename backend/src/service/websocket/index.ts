@@ -71,14 +71,20 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname
 
     if (pathname === '/media-stream') {
+      // Extract customerPhoneNumber from URL query parameters
+      const url = new URL(request.url || '', `http://${request.headers.host}`)
+      const customerPhoneNumber = url.searchParams.get('customerPhoneNumber') || ''
+
       wss.handleUpgrade(request, socket, head, (ws) => {
-        logger.info({
-          request,
-          socket,
-          head,
-        }, '[Twilio Media Stream] Upgrading connection')
-        // Store request in ws for later use
+        // Store request and customerPhoneNumber in ws for later use
+        logger.info(
+          {
+            customerPhoneNumber: customerPhoneNumber || 'not provided',
+          },
+          '[Twilio Media Stream] Establishing websocket connection to Twilio in /media-stream'
+        )
         ;(ws as any).request = request
+        ;(ws as any).customerPhoneNumber = customerPhoneNumber
         wss.emit('connection', ws, request)
       })
     }
@@ -119,13 +125,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         twilioWebSocket: ws,
       })
 
-      twilioTransportLayer.on('*', (event) => {
-        /*logger.info(
-          { event },
-          '[Twilio Media Stream] twilioTransportLayer'
-        )*/
-      })
-
       // Helper function to send greeting if not already sent
       const sendGreetingIfReady = () => {
         if (!greetingSent) {
@@ -156,10 +155,20 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
       )
 
+      // Extract customerPhoneNumber from WebSocket (stored during upgrade)
+      const customerPhoneNumber = (ws as any).customerPhoneNumber || ''
+
+      logger.info(
+        {
+          customerPhoneNumber: customerPhoneNumber || 'not provided',
+        },
+        '[Twilio Media Stream] Customer phone number extracted from WebSocket connection'
+      )
+
       // Create agent with shared MCP servers (already initialized at server startup)
       // Get phone-call-only MCP servers for Twilio
       const mcpServers = mcpServerManager.getMcpServers(true)
-      const agent = frontDeskAgentForPhone(mcpServers)
+      const agent = frontDeskAgentForPhone(mcpServers, customerPhoneNumber)
 
       // Create session immediately (user can start talking right away)
       const session = new RealtimeSession(agent, {
