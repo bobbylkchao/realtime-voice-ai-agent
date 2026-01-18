@@ -97,7 +97,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
     withTrace('twilioWebSocketConnection', async () => {
       let callId = ''
-      let phoneNumber = ''
 
       logger.info('[Twilio Media Stream] WebSocket connection established')
 
@@ -165,19 +164,18 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           logger.info(
             {
               callId,
-              phoneNumber: phoneNumber || 'NOT_EXTRACTED',
               hasPhoneSessionMcpServer: !!phoneSessionMcpServer,
               mcpServerNames: mcpServers.map((s) => s.name),
             },
             '[Twilio Media Stream] Checking conditions for personalized greeting'
           )
 
-          if (phoneSessionMcpServer && phoneNumber) {
+          if (phoneSessionMcpServer) {
             try {
               // Trigger tool call by sending a message to the agent
               // The agent will call the phone session tool, and we'll listen for the result
               logger.info(
-                { callId, phoneNumber },
+                { callId },
                 '[Twilio Media Stream] Requesting phone session data for personalized greeting'
               )
 
@@ -236,7 +234,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                   content: [
                     {
                       type: 'input_text',
-                      text: `Please call get-phone-session-based-on-phone-number tool with phone number ${phoneNumber}`,
+                      text: 'Please call get-phone-session-based-on-phone-number tool',
                     },
                   ],
                 },
@@ -248,13 +246,13 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               hotelName = result.hotelName
               if (!hotelName) {
                 logger.warn(
-                  { callId, phoneNumber },
+                  { callId },
                   '[Twilio Media Stream] Phone session data retrieved but hotelName is null (timeout or no data)'
                 )
               }
             } catch (error) {
               logger.warn(
-                { error, callId, phoneNumber },
+                { error, callId },
                 '[Twilio Media Stream] Failed to get phone session data, using default greeting'
               )
             }
@@ -263,19 +261,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               logger.warn(
                 {
                   callId,
-                  phoneNumber: phoneNumber || 'NOT_EXTRACTED',
                   availableMcpServers: mcpServers.map((s) => s.name),
                 },
                 '[Twilio Media Stream] Phone session MCP server not found, using default greeting'
-              )
-            }
-            if (!phoneNumber) {
-              logger.warn(
-                {
-                  callId,
-                  hasPhoneSessionMcpServer: !!phoneSessionMcpServer,
-                },
-                '[Twilio Media Stream] Phone number not extracted, using default greeting'
               )
             }
           }
@@ -343,27 +331,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             console.log('[Twilio Media Stream] twilio_message event received')
             const twilioMessage = event?.message as any
             callId = twilioMessage?.start?.callSid || ''
-            // Extract phone number from Twilio message
-            // The phone number might be in different fields depending on Twilio's message structure
-            phoneNumber =
-              twilioMessage?.start?.from ||
-              twilioMessage?.start?.callerId ||
-              twilioMessage?.from ||
-              ''
-            if (phoneNumber) {
-              logger.info(
-                { callId, phoneNumber },
-                '[Twilio Media Stream] Phone number extracted from Twilio message'
-              )
-            } else {
-              logger.warn(
-                {
-                  callId,
-                  twilioMessage: JSON.stringify(twilioMessage, null, 2),
-                },
-                '[Twilio Media Stream] Phone number not found in Twilio message, checking available fields'
-              )
-            }
           }
         }
       })
