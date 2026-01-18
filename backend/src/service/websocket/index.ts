@@ -145,6 +145,12 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     // Helper function to send greeting if conditions are met
     const sendGreetingIfReady = () => {
+      // DEBUG purpose
+      logger.info(
+        { callId },
+        '[Twilio Media Stream] Sending greeting if ready'
+      )
+
       if (callId && !isGreetingSent(callId)) {
         try {
           twilioTransportLayer.sendMessage({
@@ -174,7 +180,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
         if (!callId) {
-          console.log('[Twilio Media Stream] twilio_message event received')
+          console.log('[Twilio Media Stream] twilio_message event received', { eventMessage: event?.message })
           callId = event?.message?.start?.callSid || ''
         }
 
