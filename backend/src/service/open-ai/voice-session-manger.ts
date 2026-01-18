@@ -85,7 +85,8 @@ const createOpenAiVoiceAgentAndSession = async (
                 transcription: {
                   language: 'en',
                   model: 'gpt-4o-transcribe',
-                  prompt: 'This is the conversation between a user and an AI trip booking assistant. The language of the audio is English.',
+                  prompt:
+                    'This is the conversation between a user and an AI trip booking assistant. The language of the audio is English.',
                 },
               },
               output: {
@@ -97,7 +98,7 @@ const createOpenAiVoiceAgentAndSession = async (
               },
             },
           },
-        },
+        }
       )
 
       logger.info(

@@ -9,7 +9,7 @@ export const registerTools = (mcpServer: McpServer) => {
       {
         title: 'Search Hotel',
         description:
-          'Search hotels in the given location by city name and country name and check in date and check out date, return the hotel name, address, price, rating, and availabilitySearch for hotels by city, country, check-in date, and check-out date, and return each hotel\'s name, address, price, rating, and availability.',
+          "Search hotels in the given location by city name and country name and check in date and check out date, return the hotel name, address, price, rating, and availabilitySearch for hotels by city, country, check-in date, and check-out date, and return each hotel's name, address, price, rating, and availability.",
         inputSchema: {
           city: z.string(),
           country: z.string(),
@@ -100,8 +100,7 @@ export const registerTools = (mcpServer: McpServer) => {
           const { latitude, longitude } = geoData?.results?.[0] || {}
 
           // Demo purpose
-          const url =
-            `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${todayDate}&end_date=${todayDate}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`
+          const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${todayDate}&end_date=${todayDate}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`
           const res = await fetch(url)
           const data = await res.json()
 

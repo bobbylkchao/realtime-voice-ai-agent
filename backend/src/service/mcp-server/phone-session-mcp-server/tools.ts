@@ -8,8 +8,7 @@ export const registerTools = (mcpServer: McpServer) => {
       'get-phone-session-based-on-phone-number',
       {
         title: 'Get Phone Session Based on Phone Number',
-        description:
-          'Get phone session based on phone number.',
+        description: 'Get phone session based on phone number.',
         inputSchema: {
           phoneNumber: z.string(),
         },
@@ -37,7 +36,8 @@ export const registerTools = (mcpServer: McpServer) => {
           bookingStartDate: 'Jan 1, 2026',
           bookingEndDate: 'Jan 2, 2026',
           hotelName: 'Holiday Inn - Times Square',
-          hotelAddress: '585 8th Avenue, New York, NY - Times Square - Theatre District',
+          hotelAddress:
+            '585 8th Avenue, New York, NY - Times Square - Theatre District',
           numberOfGuests: 2,
           numberOfRooms: 1,
         }
@@ -48,7 +48,10 @@ export const registerTools = (mcpServer: McpServer) => {
       }
     )
   } catch (error) {
-    logger.error({ error }, '[Phone Session MCP Server] Error registering tools')
+    logger.error(
+      { error },
+      '[Phone Session MCP Server] Error registering tools'
+    )
     throw error
   }
 }

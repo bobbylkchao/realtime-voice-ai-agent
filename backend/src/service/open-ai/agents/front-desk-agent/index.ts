@@ -25,7 +25,8 @@ export const frontDeskAgent = (
     tools: [
       hotelInfoSearchAgent().asTool({
         toolName: 'hotel_info_search_expert',
-        toolDescription: 'Search for hotel information such as amenities, pet-friendly policy, cancellation policy, location, reviews, and other hotel details.',
+        toolDescription:
+          'Search for hotel information such as amenities, pet-friendly policy, cancellation policy, location, reviews, and other hotel details.',
       }),
       hotelBookingAgent().asTool({
         toolName: 'hotel_booking_expert',

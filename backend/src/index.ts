@@ -2,7 +2,10 @@ import express from 'express'
 import { config } from 'dotenv'
 import { createServer } from 'http'
 import logger from './misc/logger'
-import { initTwilioWebSocketServer, initWebSocketServer } from './service/websocket'
+import {
+  initTwilioWebSocketServer,
+  initWebSocketServer,
+} from './service/websocket'
 import { initMcpServers } from './service/mcp-server'
 import { initTwilioHttpRoute } from './service/twilio/http-route'
 
