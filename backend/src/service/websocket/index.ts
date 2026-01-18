@@ -138,6 +138,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     const sendGreetingIfReady = () => {
       if (!greetingSent) {
         try {
+          // Use transport layer to send message (this is the correct way for Twilio)
           twilioTransportLayer.sendMessage({
             type: 'message',
             role: 'user',
@@ -150,9 +151,10 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           }, {})
           logger.info('[Twilio Media Stream] Greeting sent')
           greetingSent = true
-        } catch {
-          logger.info(
-            '[Twilio Media Stream] No ready to send greeting'
+        } catch (error) {
+          logger.warn(
+            { error },
+            '[Twilio Media Stream] Failed to send greeting, will retry'
           )
         }
       }
@@ -161,7 +163,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
         // Try to send greeting when twilio_message is received
-        sendGreetingIfReady()
+        sendGreetingIfReady(session)
       }
     })
 
@@ -213,7 +215,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     session.on('error', (error) => {
       logger.error(
-        { error },
+        { error, errorType: (error as any)?.type },
         '[Twilio Media Stream] Session error occurred'
       )
     })
@@ -223,6 +225,33 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         { status },
         '[Twilio Media Stream] Connection status changed'
       )
+    })
+
+    // Listen for audio events to ensure audio is working
+    session.on('audio', (audioEvent) => {
+      logger.debug(
+        { audioLength: audioEvent.data?.byteLength },
+        '[Twilio Media Stream] Audio output received from session'
+      )
+    })
+
+    // Listen for response events
+    session.on('response.output_item.added', (event) => {
+      logger.info(
+        { eventType: event.type },
+        '[Twilio Media Stream] Response output item added'
+      )
+    })
+
+    session.on('response.output_item.done', (event) => {
+      logger.info(
+        { eventType: event.type },
+        '[Twilio Media Stream] Response output item done'
+      )
+    })
+
+    session.on('response.done', () => {
+      logger.info('[Twilio Media Stream] Response done')
     })
 
     // Listen to transport events to access raw Twilio messages (Tip #2 from docs)
@@ -250,9 +279,11 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           '[Twilio Media Stream] Connected to OpenAI Realtime API immediately'
         )
 
-        // Immediately send greeting after session is connected
-        // Agent already has MCP servers, no need to update
-        sendGreetingIfReady()
+        // Wait a bit for session to fully initialize before sending greeting
+        // This ensures audio streams are ready
+        setTimeout(() => {
+          sendGreetingIfReady(session)
+        }, 500)
       })
       .catch((error) => {
         logger.error(
