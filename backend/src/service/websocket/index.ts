@@ -61,6 +61,12 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     return
   }
 
+  const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN
+  if (!twilioAuthToken) {
+    logger.error('[Twilio] Twilio auth token missing')
+    return
+  }
+
   // Use noServer option and handle upgrade manually to avoid conflicts with Socket.IO
   const wss = new WebSocketServer({
     noServer: true, // Don't automatically handle upgrade
@@ -74,6 +80,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     const pathname = new URL(fullUrl || '/', `http://${request.headers.host || 'localhost'}`).pathname
 
     // Get twilio signature from the request
+    console.log('ws request header', request.headers)
     const twilioSignature = request.headers['x-twilio-signature']
 
     if (pathname === '/media-stream') {
@@ -101,8 +108,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // Use withTrace at the top level to provide tracing context for the entire WebSocket connection lifecycle
     // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
     withTrace('twilioWebSocketConnection', async () => {
-      console.log('twilioSignature', (ws as any).twilioSignature)
-
       let greetingSent = false
 
       logger.info(
