@@ -10,9 +10,11 @@ import logger from '../../../../misc/logger'
  * @returns Phone session data object
  */
 export const getPhoneSessionData = (phoneNumber: string) => {
-  let phoneSessionData: any = null
   // For now, return hardcoded test data
   // In production, this would query a database or API
+
+  // As default, return null for no phone session case
+  let phoneSessionData: any = null
 
   // Test case 1: Has date search
   if (phoneNumber === '+14000000000') {
@@ -43,10 +45,6 @@ export const getPhoneSessionData = (phoneNumber: string) => {
       numberOfRooms: null,
     }
   }
-
-  // Test case 3: No phone session
-  phoneSessionData = null
-
 
   logger.info(
     { phoneNumber, phoneSessionData },
