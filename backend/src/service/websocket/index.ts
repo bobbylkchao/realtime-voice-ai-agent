@@ -100,11 +100,22 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // For all other paths (like /realtime-voice), let Socket.IO handle it
   })
 
+  const greetingRecord = new Map<string, boolean>()
+
+  const isGreetingSent = (callId: string) => {
+    return greetingRecord.get(callId) || false
+  }
+
+  const setGreetingSent = (callId: string) => {
+    greetingRecord.set(callId, true)
+  }
+
   wss.on('connection', async (ws: WebSocket) => {
     // Use withTrace at the top level to provide tracing context for the entire WebSocket connection lifecycle
     // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
     withTrace('twilioWebSocketConnection', async () => {
       const customerPhoneNumber = (ws as any).customerPhoneNumber
+      let callId = ''
 
       logger.info(
         { customerPhoneNumber },
@@ -135,7 +146,51 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         twilioWebSocket: ws,
       })
 
+      // Helper function to send greeting if conditions are met
+      const sendGreetingIfReady = () => {
+        if (callId && !isGreetingSent(callId)) {
+          try {
+            twilioTransportLayer.sendMessage({
+              type: 'message',
+              role: 'user',
+              content: [
+                {
+                  type: 'input_text',
+                  text: 'hi',
+                },
+              ],
+            }, {})
+            logger.info(
+              { callId, customerPhoneNumber },
+              '[Twilio Media Stream] Greeting sent'
+            )
+            setGreetingSent(callId)
+          } catch {
+            logger.info(
+              { callId, customerPhoneNumber },
+              '[Twilio Media Stream] will retry on next twilio_message to send greeting'
+            )
+          }
+        }
+      }
+
+      // Listen for twilio_message events to get callId and trigger greeting
+      twilioTransportLayer.on('*', (event) => {
+        if (event.type === 'twilio_message') {
+          if (!callId) {
+            callId = (event as any)?.message?.start?.callSid || ''
+            logger.info(
+              { callId, customerPhoneNumber },
+              '[Twilio Media Stream] Call ID received from twilio_message'
+            )
+          }
+          // Try to send greeting when twilio_message is received
+          sendGreetingIfReady()
+        }
+      })
+
       logger.info(
+        { callId, customerPhoneNumber },
         '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
       )
 
@@ -192,39 +247,12 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         })
         .then(() => {
           logger.info(
-            { mcpServerCount: mcpServers.length },
+            { callId, customerPhoneNumber, mcpServerCount: mcpServers.length },
             '[Twilio Media Stream] Connected to OpenAI Realtime API immediately'
           )
-          // Trigger agent to start following its instructions
-          // Agent instructions require it to:
-          // 1. Call get_phone_session tool first
-          // 2. Then greet with hotel name from phone session
-          // Use a non-empty text to ensure agent responds
-          setTimeout(() => {
-            try {
-              twilioTransportLayer.sendMessage(
-                {
-                  type: 'message',
-                  role: 'user',
-                  content: [
-                    {
-                      type: 'input_text',
-                      text: 'start', // Trigger text to make agent start following instructions
-                    },
-                  ],
-                },
-                {}
-              )
-              logger.info(
-                '[Twilio Media Stream] Triggered agent to start - it will call get_phone_session and greet automatically'
-              )
-            } catch (error) {
-              logger.error(
-                { error },
-                '[Twilio Media Stream] Error triggering agent start'
-              )
-            }
-          }, 1000) // Increased delay to ensure session and audio channels are fully ready
+          // Send greeting immediately after session is connected
+          // This follows master branch pattern where greeting is sent after connection
+          sendGreetingIfReady()
         })
         .catch((error) => {
           logger.error(
@@ -235,14 +263,16 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         })
 
       ws.on('close', async () => {
-        logger.info('[Twilio Media Stream] WebSocket connection closed')
+        logger.info({ callId, customerPhoneNumber }, '[Twilio Media Stream] WebSocket connection closed')
 
         try {
           session.close()
-          logger.info('[Twilio Media Stream] RealtimeSession closed')
+          greetingRecord.delete(callId)
+          callId = ''
+          logger.info({ callId, customerPhoneNumber }, '[Twilio Media Stream] RealtimeSession closed')
         } catch (error) {
           logger.error(
-            { error },
+            { error, callId, customerPhoneNumber },
             '[Twilio Media Stream] Error closing RealtimeSession'
           )
         }
@@ -253,9 +283,11 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
       ws.on('error', (error) => {
         logger.error(
-          { error },
+          { error, callId, customerPhoneNumber },
           '[Twilio Media Stream] WebSocket error occurred'
         )
+        greetingRecord.delete(callId)
+        callId = ''
       })
     }).catch((tracingError) => {
       // Log tracing errors separately (non-fatal)
