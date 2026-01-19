@@ -10,17 +10,13 @@ import logger from '../../../../misc/logger'
  * @returns Phone session data object
  */
 export const getPhoneSessionData = (phoneNumber: string) => {
-  logger.info(
-    { phoneNumber },
-    '[Phone Session Agent] Getting phone session based on phone number'
-  )
-
+  let phoneSessionData: any = null
   // For now, return hardcoded test data
   // In production, this would query a database or API
 
   // Test case 1: Has date search
   if (phoneNumber === '+14000000000') {
-    return {
+    phoneSessionData = {
       customerPhoneNumber: phoneNumber,
       productName: 'hotel',
       destinationCity: 'New York',
@@ -35,7 +31,7 @@ export const getPhoneSessionData = (phoneNumber: string) => {
   
   // Test case 2: No date search
   if (phoneNumber === '+1500000000') {
-    return {
+    phoneSessionData = {
       customerPhoneNumber: phoneNumber,
       productName: 'hotel',
       destinationCity: 'New York',
@@ -49,7 +45,15 @@ export const getPhoneSessionData = (phoneNumber: string) => {
   }
 
   // Test case 3: No phone session
-  return null
+  phoneSessionData = null
+
+
+  logger.info(
+    { phoneNumber, phoneSessionData },
+    '[Phone Session Agent] Getting phone session based on phone number'
+  )
+
+  return phoneSessionData
 }
 
 /**
