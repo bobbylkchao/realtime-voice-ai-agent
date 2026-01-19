@@ -2,13 +2,13 @@ import type { Express } from 'express'
 import logger from '../../misc/logger'
 
 export const initTwilioHttpRoute = (app: Express) => {
-  if (process.env.TWILIO_ENABLE !== 'true' || !process.env.TWILIO_WEBHOOK_HOST) {
+  if (process.env.TWILIO_ENABLE !== 'true' || !process.env.TWILIO_WEBHOOK_URL) {
     logger.info('[Twilio] Skip initializing Twilio')
     return
   }
 
   app.all('/incoming-call', (req, res) => {
-    const mediaStreamUrl = process.env.TWILIO_WEBHOOK_HOST
+    const mediaStreamUrl = process.env.TWILIO_WEBHOOK_URL
 
     const twimlResponse = `
 <?xml version="1.0" encoding="UTF-8"?>
