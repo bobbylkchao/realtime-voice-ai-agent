@@ -179,7 +179,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         }
 
         // Try to send greeting when twilio_message is received
-        sendGreetingIfReady()
+        // sendGreetingIfReady()
       }
     })
 
