@@ -6,6 +6,7 @@ import { carRentalBookingTool } from '../car-rental-booking-agent/tool'
 import { flightBookingTool } from '../flight-booking-agent/tool'
 import { postBookingTool } from '../post-booking-agent/tool'
 import { getPhoneSessionTool } from '../phone-session-agent'
+import { checkoutTool } from '../checkout-agent/tool'
 import { getGeneralInstructions } from './instructions/general-instructions'
 import { getCustomerPhoneSessionInstructions } from './instructions/customer-phone-session'
 import { getConversationInstructions } from './instructions/conversation'
@@ -33,6 +34,7 @@ export const frontDeskAgentForPhone = (
       carRentalBookingTool,
       flightBookingTool,
       postBookingTool,
+      checkoutTool,
     ],
     mcpServers: mcpServers.length > 0 ? mcpServers : [],
   })
