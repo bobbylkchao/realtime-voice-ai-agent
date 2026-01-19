@@ -22,6 +22,7 @@ export const frontDeskAgentForPhone = (
   mcpServers: MCPServerStreamableHttp[],
   customerPhoneNumber?: string
 ): RealtimeAgent<{ history: RealtimeItem[] }> => {
+  console.log('mcpServers', mcpServers)
   const companyName = TESTING_COMPANY_NAME[TESTING_TYPE]
   const frontDeskInstructions = getFrontDeskPhoneAgentInstructions(
     companyName,
@@ -42,7 +43,7 @@ export const frontDeskAgentForPhone = (
     - Searching hotels, car rentals, and flights
     - Getting weather information for destination cities
     - Canceling existing bookings
-    - Getting phone session data (use phone-session-mcp-server at conversation start)
+    - Getting phone session data: Use the tool \`get-phone-session\` (exact name with hyphens) at conversation start
     ` : ''}
     `,
     tools: [

@@ -42,12 +42,13 @@ export const getFrontDeskPhoneAgentInstructions = (
 **CRITICAL - MUST FOLLOW THIS EXACT SEQUENCE AT THE START OF EVERY CONVERSATION:**
 
 1. **Step 1: Retrieve Phone Session (MANDATORY FIRST ACTION)**
-   - IMMEDIATELY at the start of the conversation, you MUST call the tool from phone-session-mcp-server
-   - **Tool Name:** \`get-phone-session\` (available through phone-session-mcp-server MCP server)
+   - IMMEDIATELY at the start of the conversation, you MUST call the tool named \`get-phone-session\`
+   - **CRITICAL:** The tool name is exactly \`get-phone-session\` (use this exact name, with hyphens, not underscores)
    - **Tool Function:** Get the customer's phone session data based on their phone number
    - **Required Parameter:** phoneNumber${customerPhoneNumber ? ` = \`${customerPhoneNumber}\`` : ' - You need to provide the customer\'s phone number when calling this tool'}
    ${customerPhoneNumber ? `- **IMPORTANT:** The customer's phone number is \`${customerPhoneNumber}\`` : ''}
-   - **How to call:** Call the \`get-phone-session\` tool with the phoneNumber parameter${customerPhoneNumber ? ` set to \`${customerPhoneNumber}\`` : ' set to the customer\'s phone number'}
+   - **How to call:** Simply call the tool \`get-phone-session\` with the phoneNumber parameter${customerPhoneNumber ? ` set to \`${customerPhoneNumber}\`` : ' set to the customer\'s phone number'}
+   - **Example:** Call \`get-phone-session\` with \`{"phoneNumber": "${customerPhoneNumber || 'the customer\'s phone number'}"}\`
    - This retrieves the customer's current browsing session information, including:
      - Product name (hotel, car rental, flight)
      - Destination city
@@ -120,7 +121,7 @@ ${customerPhoneNumber ? `- Customer's phone number: ${customerPhoneNumber} (use 
 ### Conversation Example
 Here is an example of a real conversation flow:
 
-**Step 1:** [FIRST ACTION: Call the \`get-phone-session\` tool from phone-session-mcp-server with phoneNumber${customerPhoneNumber ? ` = ${customerPhoneNumber}` : ' = the customer\'s phone number'}]
+**Step 1:** [FIRST ACTION: Call the tool \`get-phone-session\` with parameter phoneNumber${customerPhoneNumber ? ` = ${customerPhoneNumber}` : ' = the customer\'s phone number'}]
 
 **Step 2:** Phone Agent: "Hi, thank you for calling ${companyName}, I see you're looking at the Holiday Inn New York City - Times Square. How can I help?"
 

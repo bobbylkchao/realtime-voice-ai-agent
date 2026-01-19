@@ -71,59 +71,11 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // Get the full URL including query string
     // request.url should contain the full path with query string
     const fullUrl = request.url || ''
-    console.log('ws request', request)
     const pathname = new URL(fullUrl || '/', `http://${request.headers.host || 'localhost'}`).pathname
 
     if (pathname === '/media-stream') {
-      let customerPhoneNumber = ''
-
-      try {
-        // Log the full request details for debugging
-        logger.debug(
-          {
-            requestUrl: fullUrl,
-            headers: request.headers,
-            method: request.method,
-          },
-          '[Twilio Media Stream] Full request details'
-        )
-
-        // Try multiple methods to extract query parameters
-        // Method 1: Direct from request.url
-        if (fullUrl.includes('?')) {
-          const queryString = fullUrl.split('?')[1]
-          const params = new URLSearchParams(queryString)
-          customerPhoneNumber = params.get('customerPhoneNumber') || ''
-        }
-
-        // Method 2: If not found, try parsing from full URL
-        if (!customerPhoneNumber) {
-          try {
-            const url = new URL(fullUrl, `http://${request.headers.host || 'localhost'}`)
-            customerPhoneNumber = url.searchParams.get('customerPhoneNumber') || ''
-          } catch (urlError) {
-            logger.warn(
-              { urlError, fullUrl },
-              '[Twilio Media Stream] Failed to parse URL with new URL()'
-            )
-          }
-        }
-
-        // Log for debugging
-        logger.info(
-          {
-            requestUrl: fullUrl,
-            customerPhoneNumber: customerPhoneNumber || 'not found',
-            pathname,
-          },
-          '[Twilio Media Stream] Parsed URL query parameters'
-        )
-      } catch (error) {
-        logger.error(
-          { error, fullUrl },
-          '[Twilio Media Stream] Failed to parse URL query parameters'
-        )
-      }
+      // TODO: how to get customerPhoneNumber from the request???
+      const customerPhoneNumber = ''
 
       wss.handleUpgrade(request, socket, head, (ws) => {
         // Store request and customerPhoneNumber in ws for later use
