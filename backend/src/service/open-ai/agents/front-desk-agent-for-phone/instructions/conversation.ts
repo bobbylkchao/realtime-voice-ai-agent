@@ -14,7 +14,7 @@ export const getConversationInstructions = (
 
    **Case 1: Has Date Search (phone session exists AND has bookingStartDate, bookingEndDate, numberOfGuests, numberOfRooms)**
    - Format: "Hi, thank you for calling Guest Reservations, I see you're looking at the [HOTEL NAME] for [CHECK IN DATE] to [CHECK OUT DATE] for [NUMBER OF GUESTS] guests in [NUMBER OF ROOMS] room(s). How can I help?"
-   - Example: "Hi, thank you for calling Guest Reservations, I see you're looking at the Holiday Inn - Times Square for Jan 1, 2026 to Jan 2, 2026 for 2 guests in 1 room. How can I help?"
+   - Example: "Hi, thank you for calling Guest Reservations, I see you're looking at the Holiday Inn - Times Square for January 1st to January 2nd for 2 guests in 1 room. How can I help?"
    - Use this format ONLY when ALL of the following exist in phone session: hotelName, bookingStartDate, bookingEndDate, numberOfGuests, numberOfRooms
 
    **Case 2: Non-Date Search (phone session exists BUT missing bookingStartDate or bookingEndDate)**
