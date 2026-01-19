@@ -4,6 +4,7 @@ import { createServer } from 'http'
 import logger from './misc/logger'
 import { initTwilioWebSocketServer, initWebSocketServer } from './service/websocket'
 import { initMcpServers } from './service/mcp-server'
+import { mcpServerManager } from './service/mcp-server/manager'
 import { initTwilioHttpRoute } from './service/twilio/http-route'
 
 config()
@@ -23,7 +24,7 @@ const startServices = async () => {
   initMcpServers(app, PORT)
   initTwilioWebSocketServer(httpServer)
 
-  httpServer.listen(PORT, () => {
+  httpServer.listen(PORT, async () => {
     logger.info(`[Server] HTTP Server ready at: http://localhost:${PORT}`)
     logger.info(
       `[Server] Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`
@@ -33,6 +34,18 @@ const startServices = async () => {
       logger.info(
         `[Server] Twilio Media Stream ready at: ${TWILIO_WEBHOOK_URL}`
       )
+    }
+
+    // Initialize MCP servers after HTTP server is listening
+    // This ensures MCP server endpoints are available before connecting
+    try {
+      await mcpServerManager.initialize()
+    } catch (error) {
+      logger.error(
+        { error },
+        '[Server] Failed to initialize MCP servers - server must exit'
+      )
+      process.exit(1)
     }
   })
 }
