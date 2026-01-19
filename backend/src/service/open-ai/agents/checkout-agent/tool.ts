@@ -20,13 +20,13 @@ import { tool } from '@openai/agents-realtime'
 export const checkoutTool = tool({
   name: 'checkout_expert',
   description:
-    'Validate checkout parameters and check if all required information (hotel name, check-in date, check-out date, number of guests, number of rooms) is available before proceeding with checkout. If any parameters are missing, returns a list of missing parameters that need to be collected from the customer.',
+    'Validate checkout parameters and check if all required information (hotel name, check-in date, check-out date, number of guests, number of rooms) is available before proceeding with checkout. If any parameters are missing, returns a list of missing parameters that need to be collected from the customer. IMPORTANT: When the customer provides answers like "one", "just me", "two", etc., you MUST convert these to numbers (1, 1, 2, etc.) before calling this tool.',
   parameters: z.object({
     hotelName: z.string().nullish().describe('The hotel name for checkout'),
-    checkInDate: z.string().nullish().describe('Check-in date'),
-    checkOutDate: z.string().nullish().describe('Check-out date'),
-    numberOfGuests: z.number().nullish().describe('Number of guests'),
-    numberOfRooms: z.number().nullish().describe('Number of rooms'),
+    checkInDate: z.string().nullish().describe('Check-in date (e.g., "January 1st", "Jan 1, 2026")'),
+    checkOutDate: z.string().nullish().describe('Check-out date (e.g., "January 2nd", "Jan 2, 2026")'),
+    numberOfGuests: z.number().nullish().describe('Number of guests as a NUMBER (e.g., 1, 2, 3). Convert natural language like "one", "just me", "two people" to numbers (1, 1, 2) before passing to this tool.'),
+    numberOfRooms: z.number().nullish().describe('Number of rooms as a NUMBER (e.g., 1, 2, 3). Convert natural language like "one room", "two rooms" to numbers (1, 2) before passing to this tool.'),
   }),
   execute: async (input) => {
     const { hotelName, checkInDate, checkOutDate, numberOfGuests, numberOfRooms } = input

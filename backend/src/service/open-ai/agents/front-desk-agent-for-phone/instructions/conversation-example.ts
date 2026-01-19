@@ -69,10 +69,26 @@ Here are examples of real conversations for different scenarios:
 - Phone Agent: Perfect. And what's your check-out date?
 - Customer: January 2nd.
 - Phone Agent: How many guests will be staying?
-- Customer: 2 guests.
+- Customer: Just me! (or "one", "only me", "myself")
+- Phone Agent: [IMPORTANT: Convert "Just me" to number 1, then call checkout_expert tool with numberOfGuests=1]
+- [checkout_expert returns: status="missing_parameters", missingParameters=["number of rooms"]]
 - Phone Agent: And how many rooms do you need?
-- Customer: 1 room.
-- Phone Agent: [Call checkout_expert tool with all collected parameters]
+- Customer: One room. (or "a room", "single room")
+- Phone Agent: [IMPORTANT: Convert "One room" to number 1, then call checkout_expert tool with all collected parameters including numberOfGuests=1, numberOfRooms=1]
+- [checkout_expert returns: status="ready_for_checkout"]
+- Phone Agent: Perfect! I have all the information I need. I can transfer you to one of our agents who can assist you with the checkout process right away. Or, if you prefer, I can send you an email checkout link so you can complete it at your convenience. Which option works better for you?
+
+**Example 7: Checkout Process - Natural Language Conversion**
+- Customer: I'd like to book this hotel.
+- Phone Agent: Sure, let me help you with that. [Call checkout_expert tool with parameters from phone session]
+- [checkout_expert returns: status="missing_parameters", missingParameters=["number of guests", "number of rooms"]]
+- Phone Agent: How many guests will be staying?
+- Customer: Two people.
+- Phone Agent: [IMPORTANT: Convert "Two people" to number 2, then call checkout_expert tool with numberOfGuests=2]
+- [checkout_expert returns: status="missing_parameters", missingParameters=["number of rooms"]]
+- Phone Agent: And how many rooms do you need?
+- Customer: Just one room.
+- Phone Agent: [IMPORTANT: Convert "Just one room" to number 1, then call checkout_expert tool with numberOfGuests=2, numberOfRooms=1]
 - [checkout_expert returns: status="ready_for_checkout"]
 - Phone Agent: Perfect! I have all the information I need. I can transfer you to one of our agents who can assist you with the checkout process right away. Or, if you prefer, I can send you an email checkout link so you can complete it at your convenience. Which option works better for you?
 `.trim()
