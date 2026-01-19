@@ -79,10 +79,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     const fullUrl = request.url || ''
     const pathname = new URL(fullUrl || '/', `http://${request.headers.host || 'localhost'}`).pathname
 
-    // Get twilio signature from the request
-    console.log('ws request header', request.headers)
-    const twilioSignature = request.headers['x-twilio-signature']
-
     if (pathname === '/media-stream') {
       // TODO: how to get customerPhoneNumber from the request
       const customerPhoneNumber = '+14000000000'
@@ -244,34 +240,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
       session.on('response.done', () => {
         logger.info('[Twilio Media Stream] Response done')
-      })
-
-      // Listen to transport events to access raw Twilio messages (Tip #2 from docs)
-      session.on('transport_event', (event) => {
-        if (event.type === 'twilio_message') {
-          const message = (event as any).message
-          logger.debug(
-            { message },
-            '[Twilio Media Stream] Raw Twilio message received'
-          )
-
-          // Try to extract customerPhoneNumber from Twilio message if not already set
-          if (!customerPhoneNumber && message) {
-            // Twilio messages may contain caller information
-            const callerNumber = message?.event?.payload?.callerNumber ||
-                                 message?.callerNumber ||
-                                 message?.From
-            if (callerNumber) {
-              customerPhoneNumber = callerNumber
-              logger.info(
-                { customerPhoneNumber, messageType: message?.event?.event },
-                '[Twilio Media Stream] Extracted customer phone number from Twilio message'
-              )
-              // Update the stored value
-              ;(ws as any).customerPhoneNumber = customerPhoneNumber
-            }
-          }
-        }
       })
 
       // Connect IMMEDIATELY (this is critical!)
