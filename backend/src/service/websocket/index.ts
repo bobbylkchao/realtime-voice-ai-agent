@@ -68,7 +68,7 @@ const setGreetingSent = (callId: string) => {
 // Case 1: Has date search, use +14000000000
 // Case 2: No date search, use '+15000000000'
 // Case 3: No phone session, use '+16000000000'
-const mockCustomerPhoneNumber = '+14000000000'
+const mockCustomerPhoneNumber = '+15000000000'
 
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   if (process.env.TWILIO_ENABLE !== 'true') {
