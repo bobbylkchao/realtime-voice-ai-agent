@@ -73,6 +73,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     const fullUrl = request.url || ''
     const pathname = new URL(fullUrl || '/', `http://${request.headers.host || 'localhost'}`).pathname
 
+    // Get twilio signature from the request
+    const twilioSignature = request.headers['x-twilio-signature']
+
     if (pathname === '/media-stream') {
       // TODO: how to get customerPhoneNumber from the request???
       const customerPhoneNumber = ''
@@ -87,7 +90,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           '[Twilio Media Stream] Establishing websocket connection to Twilio in /media-stream'
         )
         ;(ws as any).request = request
-        ;(ws as any).customerPhoneNumber = customerPhoneNumber
+        ;(ws as any).twilioSignature = twilioSignature
         wss.emit('connection', ws, request)
       })
     }
@@ -98,7 +101,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // Use withTrace at the top level to provide tracing context for the entire WebSocket connection lifecycle
     // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
     withTrace('twilioWebSocketConnection', async () => {
-      console.log('ws', ws)
+      console.log('twilioSignature', (ws as any).twilioSignature)
 
       let greetingSent = false
 
