@@ -38,8 +38,6 @@ export const initTwilioHttpRoute = (app: Express) => {
       {
         mediaStreamUrl,
         callInfo,
-        requestBody: req.body,
-        requestHeaders: req.headers,
       },
       '[Twilio] Incoming call received'
     )

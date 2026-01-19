@@ -84,8 +84,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     const twilioSignature = request.headers['x-twilio-signature']
 
     if (pathname === '/media-stream') {
-      // TODO: how to get customerPhoneNumber from the request???
-      const customerPhoneNumber = ''
+      // TODO: how to get customerPhoneNumber from the request
+      const customerPhoneNumber = '+14000000000'
 
       wss.handleUpgrade(request, socket, head, (ws) => {
         // Store request and customerPhoneNumber in ws for later use
@@ -97,7 +97,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           '[Twilio Media Stream] Establishing websocket connection to Twilio in /media-stream'
         )
         ;(ws as any).request = request
-        ;(ws as any).twilioSignature = twilioSignature
+        ;(ws as any).customerPhoneNumber = customerPhoneNumber
         wss.emit('connection', ws, request)
       })
     }
@@ -110,7 +110,10 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     withTrace('twilioWebSocketConnection', async () => {
       let greetingSent = false
 
+      const customerPhoneNumber = (ws as any).customerPhoneNumber
+
       logger.info(
+        { customerPhoneNumber },
         '[Twilio Media Stream] WebSocket connection established'
       )
 
@@ -166,16 +169,6 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
       logger.info(
         '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
-      )
-
-      // Extract customerPhoneNumber from WebSocket (stored during upgrade)
-      let customerPhoneNumber = (ws as any).customerPhoneNumber || ''
-
-      logger.info(
-        {
-          customerPhoneNumber: customerPhoneNumber || 'not provided',
-        },
-        '[Twilio Media Stream] Customer phone number extracted from WebSocket connection'
       )
 
       // Create agent with shared MCP servers (already initialized at server startup)
