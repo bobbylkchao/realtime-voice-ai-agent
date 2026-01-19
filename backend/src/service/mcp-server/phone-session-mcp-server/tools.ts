@@ -5,7 +5,7 @@ import logger from '../../../misc/logger'
 export const registerTools = (mcpServer: McpServer) => {
   try {
     mcpServer.registerTool(
-      'get-phone-session',
+      'get_phone_session',
       {
         title: 'Get Phone Session',
         description: 'Get customer phone session data based on phone number. This retrieves the customer\'s current browsing session information including hotel name, destination city, booking dates, number of guests, and rooms.',

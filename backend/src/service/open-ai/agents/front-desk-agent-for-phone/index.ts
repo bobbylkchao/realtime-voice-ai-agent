@@ -43,7 +43,7 @@ export const frontDeskAgentForPhone = (
     - Searching hotels, car rentals, and flights
     - Getting weather information for destination cities
     - Canceling existing bookings
-    - Getting phone session data: Use the tool \`get-phone-session\` (exact name with hyphens) at conversation start
+    - Getting phone session data: Use the tool \`get_phone_session\` (exact name with underscores) at conversation start
     ` : ''}
     `,
     tools: [

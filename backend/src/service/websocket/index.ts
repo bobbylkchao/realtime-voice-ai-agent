@@ -197,10 +197,42 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       // Set up event listeners
       session.on('mcp_tools_changed', (tools: { name: string }[]) => {
         const toolNames = tools.map((tool) => tool.name).join(', ')
+        const toolDetails = tools.map((tool) => ({
+          name: tool.name,
+          nameLength: tool.name.length,
+        }))
         logger.info(
-          { toolNames },
+          {
+            toolNames,
+            toolCount: tools.length,
+            toolDetails,
+          },
           `[Twilio Media Stream] Available MCP tools: ${toolNames || 'None'}`
         )
+        
+        // Check if get-phone-session is in the list
+        const phoneSessionTool = tools.find((tool) => 
+          tool.name === 'get-phone-session' || 
+          tool.name === 'get_phone_session' ||
+          tool.name === 'get_phone-session'
+        )
+        if (phoneSessionTool) {
+          logger.info(
+            {
+              foundToolName: phoneSessionTool.name,
+              expectedName: 'get-phone-session',
+              match: phoneSessionTool.name === 'get-phone-session',
+            },
+            '[Twilio Media Stream] Phone session tool found with name'
+          )
+        } else {
+          logger.warn(
+            {
+              availableTools: toolNames,
+            },
+            '[Twilio Media Stream] Phone session tool NOT found in available tools'
+          )
+        }
       })
 
       session.on(
