@@ -10,7 +10,7 @@
     "start": "npm run compile && node ./dist/index.js",
     "build": "npm run compile",
     "dev": "nodemon",
-    "lint": "npx tsc && eslint --config ./eslint.config.mjs src --fix",
+    "lint": "eslint --config ./eslint.config.mjs src --fix",
     "format": "prettier --config .prettierrc \"src/**/*.ts\" --write",
     "version": "npx standard-version --skip.tag --skip.commit --release-as patch"
   },
