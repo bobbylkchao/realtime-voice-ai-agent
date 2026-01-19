@@ -144,7 +144,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     })
 
     // Helper function to send greeting if conditions are met
-    const sendGreetingIfReady = () => {
+    const sendGreetingIfReady = (fromWhichLine?: number) => {
       if (callId && !isGreetingSent(callId)) {
         try {
           twilioTransportLayer.sendMessage({
@@ -158,13 +158,13 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             ],
           }, {})
           logger.info(
-            { callId },
+            { callId, fromWhichLine },
             '[Twilio Media Stream] Greeting sent'
           )
           setGreetingSent(callId)
         } catch {
           logger.info(
-            { callId },
+            { callId, fromWhichLine },
             '[Twilio Media Stream] will retry on next twilio_message to send greeting'
           )
         }
@@ -174,12 +174,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
         if (!callId) {
-          console.log('[Twilio Media Stream] twilio_message event received')
+          console.log('[Twilio Media Stream] update callId')
           callId = event?.message?.start?.callSid || ''
         }
-
-        // Try to send greeting when twilio_message is received
-        // sendGreetingIfReady()
       }
     })
 
@@ -319,7 +316,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                 )
                 
                 // Immediately send greeting after agent is updated (optimization: no need to wait for twilio_message)
-                sendGreetingIfReady()
+                sendGreetingIfReady(319)
               } catch (error) {
                 logger.error(
                   { error, callId },
@@ -333,7 +330,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               )
               
               // Even without MCP servers, send greeting immediately
-              sendGreetingIfReady()
+              sendGreetingIfReady(333)
             }
           })
           .catch((error) => {
