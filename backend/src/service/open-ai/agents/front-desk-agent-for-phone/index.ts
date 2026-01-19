@@ -13,12 +13,13 @@ import { getConversationExample } from './instructions/conversation-example'
 
 export const frontDeskAgentForPhone = (
   mcpServers: MCPServerStreamableHttp[],
+  phoneNumber: string,
 ): RealtimeAgent<{ history: RealtimeItem[] }> => {
   const instructions = [
     getGeneralInstructions(mcpServers.length),
-    getCustomerPhoneSessionInstructions(),
-    getConversationInstructions(),
-    getConversationExample(),
+    getCustomerPhoneSessionInstructions(phoneNumber),
+    getConversationInstructions(phoneNumber),
+    getConversationExample(phoneNumber),
   ].join('\n\n')
 
   return new RealtimeAgent<{ history: RealtimeItem[] }>({

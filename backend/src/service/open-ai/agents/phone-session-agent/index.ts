@@ -17,17 +17,39 @@ export const getPhoneSessionData = (phoneNumber: string) => {
 
   // For now, return hardcoded test data
   // In production, this would query a database or API
-  return {
-    customerPhoneNumber: phoneNumber,
-    productName: 'hotel',
-    destinationCity: 'New York',
-    bookingStartDate: 'Jan 1, 2026',
-    bookingEndDate: 'Jan 2, 2026',
-    hotelName: 'Holiday Inn - Times Square',
-    hotelAddress: '585 8th Avenue, New York, NY - Times Square - Theatre District',
-    numberOfGuests: 2,
-    numberOfRooms: 1,
+
+  // Test case 1: Has date search
+  if (phoneNumber === '+14000000000') {
+    return {
+      customerPhoneNumber: phoneNumber,
+      productName: 'hotel',
+      destinationCity: 'New York',
+      bookingStartDate: 'Jan 1, 2026',
+      bookingEndDate: 'Jan 2, 2026',
+      hotelName: 'Holiday Inn - Times Square',
+      hotelAddress: '585 8th Avenue, New York, NY - Times Square - Theatre District',
+      numberOfGuests: 2,
+      numberOfRooms: 1,
+    }
   }
+  
+  // Test case 2: No date search
+  if (phoneNumber === '+1500000000') {
+    return {
+      customerPhoneNumber: phoneNumber,
+      productName: 'hotel',
+      destinationCity: 'New York',
+      bookingStartDate: null,
+      bookingEndDate: null,
+      hotelName: 'Holiday Inn - Times Square',
+      hotelAddress: '585 8th Avenue, New York, NY - Times Square - Theatre District',
+      numberOfGuests: null,
+      numberOfRooms: null,
+    }
+  }
+
+  // Test case 3: No phone session
+  return null
 }
 
 /**
