@@ -144,7 +144,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     })
 
     // Helper function to send greeting if conditions are met
-    const sendGreetingIfReady = (fromWhichLine?: number) => {
+    const sendGreetingIfReady = () => {
       if (callId && !isGreetingSent(callId)) {
         try {
           twilioTransportLayer.sendMessage({
@@ -158,7 +158,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             ],
           }, {})
           logger.info(
-            { callId, fromWhichLine },
+            { callId },
             '[Twilio Media Stream] Greeting sent'
           )
           setGreetingSent(callId)
@@ -316,7 +316,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                 )
                 
                 // Immediately send greeting after agent is updated (optimization: no need to wait for twilio_message)
-                sendGreetingIfReady(319)
+                sendGreetingIfReady()
               } catch (error) {
                 logger.error(
                   { error, callId },
@@ -330,7 +330,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               )
               
               // Even without MCP servers, send greeting immediately
-              sendGreetingIfReady(333)
+              sendGreetingIfReady()
             }
           })
           .catch((error) => {
