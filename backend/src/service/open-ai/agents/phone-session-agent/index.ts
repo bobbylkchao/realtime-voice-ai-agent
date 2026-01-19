@@ -30,7 +30,7 @@ export const getPhoneSessionData = (phoneNumber: string) => {
   }
   
   // Test case 2: No date search
-  if (phoneNumber === '+1500000000') {
+  if (phoneNumber === '+15000000000') {
     phoneSessionData = {
       customerPhoneNumber: phoneNumber,
       productName: 'hotel',
