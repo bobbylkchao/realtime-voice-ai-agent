@@ -11,7 +11,7 @@ config()
 const startServices = async () => {
   const PORT = Number(process.env.PORT) || 4000
   const IS_TWILIO_ENABLE = process.env.TWILIO_ENABLE === 'true'
-  const TWILIO_WEBHOOK_URL = process.env.TWILIO_WEBHOOK_URL
+  const TWILIO_WEBHOOK_HOST = process.env.TWILIO_WEBHOOK_HOST
 
   const app = express()
   app.use(express.json())
@@ -30,9 +30,15 @@ const startServices = async () => {
     )
 
     if (IS_TWILIO_ENABLE) {
-      logger.info(
-        `[Server] Twilio Media Stream ready at: ${TWILIO_WEBHOOK_URL}`
-      )
+      if (TWILIO_WEBHOOK_HOST) {
+        logger.info(
+          `[Server] Twilio Media Stream ready at: ${TWILIO_WEBHOOK_HOST}`
+        )
+      } else {
+        logger.warn(
+          '[Server] Twilio enabled but TWILIO_WEBHOOK_HOST is not set'
+        )
+      }
     }
   })
 }

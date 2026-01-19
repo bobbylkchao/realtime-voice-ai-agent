@@ -107,7 +107,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         if (typeof data === 'string') {
           // Log JSON messages to see what's being sent
           try {
-            const json = JSON.parse(data)
+            JSON.parse(data)
           } catch {
             logger.debug(
               { callId, message: data.substring(0, 200) },
@@ -162,7 +162,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             '[Twilio Media Stream] Greeting sent'
           )
           setGreetingSent(callId)
-        } catch (error) {
+        } catch {
           logger.info(
             { callId },
             '[Twilio Media Stream] will retry on next twilio_message to send greeting'

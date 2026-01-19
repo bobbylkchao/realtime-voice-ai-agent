@@ -1,15 +1,16 @@
 import { RealtimeAgent, RealtimeItem } from '@openai/agents-realtime'
 import { MCPServerStreamableHttp } from '@openai/agents'
-import { hotelBookingAgent } from '../hotel-booking-agent'
-import { carRentalBookingAgent } from '../car-rental-booking-agent'
-import { flightBookingAgent } from '../flight-booking-agent'
-import { postBookingAgent } from '../post-booking-agent'
-import { hotelInfoSearchAgent } from '../hotel-info-search-agent'
+import { hotelInfoSearchTool } from '../hotel-info-search-agent/tool'
+import { hotelBookingTool } from '../hotel-booking-agent/tool'
+import { carRentalBookingTool } from '../car-rental-booking-agent/tool'
+import { flightBookingTool } from '../flight-booking-agent/tool'
+import { postBookingTool } from '../post-booking-agent/tool'
+import { getPhoneSessionTool } from '../phone-session-agent'
 
 export const frontDeskAgentForPhone = (
-  mcpServers: MCPServerStreamableHttp[]
+  mcpServers: MCPServerStreamableHttp[],
 ): RealtimeAgent<{ history: RealtimeItem[] }> => {
-  return new RealtimeAgent({
+  return new RealtimeAgent<{ history: RealtimeItem[] }>({
     name: 'Front Desk Agent for Phone',
     voice: 'marin',
     instructions: `
@@ -35,18 +36,19 @@ export const frontDeskAgentForPhone = (
     13. Speak English only. Do not use any other language.
     14. Currently we are testing this agent with a small number of customers. Please response as quick, fast as possible.
     15. Must follow the instructions below: 'Customer's Phone Session' and 'How to start the conversation', this is key about how to act as a call center agent.
-    ${mcpServers.length > 0 ? '16. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings, get phone session data etc.' : ''}
+    ${mcpServers.length > 0 ? '16. You have access to tools through MCP server for searching hotels, car rentals, flights, getting weather information and canceling existing bookings.' : ''}
+    17. You have access to the \`get_phone_session\` tool to get phone session data based on phone number.
 
     ## Instructions: Customer's Phone Session ##
     1. Customer's phone number is always +14313885705.
-    2. You have access to MCP server: phone-session-mcp-server to get phone session based on phone number +14313885705, please use this tool to get the phone session
+    2. You have access to the tool \`get_phone_session\` (exact name with underscores) to get phone session based on phone number +14313885705, please use this tool to get the phone session.
     3. Once you get the phone session, that's the infomation that customer is looking at, including product name, destination city, booking start date, booking end date, hotel name, hotel address, number of guests, number of rooms, etc.
     4. Based on phone session, you can mention to customer that you see what they are looking at, for example, "I see you're looking hotel 'Holiday Inn New York City - Times Square' in New York from 2026-01-01 to 2026-01-02"
     5. The term 'phone session' is a technical matter, customer does not know what it is, so you could say: "The trip you're looking at" or "The trip you're looking for" instead of 'phone session'.
 
     ## Instructions: How to start the conversation ##
     1. When you start the conversation, you should greet the customer and ask them for their name. Customer may just say their name like "John", or they may say something like "My name is John".
-    2. Once you get the customer's name, you should get the customer's phone session based on their phone number (+14313885705) using the phone-session-mcp-server tool.
+    2. Once you get the customer's name, you should get the customer's phone session based on their phone number (+14313885705) using the \`get_phone_session\` tool.
     3. Once you get the customer's phone session, you should mention to customer ONCE AND ONLY ONCE that you see what they are looking at, for example, "I see you're looking hotel 'Holiday Inn New York City - Times Square' in New York from 2026-01-01 to 2026-01-02"
     4. Then you should confirm with customer ONCE and ask what help they need.
     5. **CRITICAL: After the initial confirmation, NEVER mention or repeat the phone session information again in ANY subsequent response. This includes:**
@@ -75,26 +77,12 @@ export const frontDeskAgentForPhone = (
     - Phone Agent: One moment, please. [Immediate acknowledgment, then call hotel_info_search_expert tool, then list the amenities]
     `,
     tools: [
-      hotelInfoSearchAgent().asTool({
-        toolName: 'hotel_info_search_expert',
-        toolDescription: 'Search for hotel information such as amenities, pet-friendly policy, cancellation policy, location, reviews, and other hotel details.',
-      }),
-      hotelBookingAgent().asTool({
-        toolName: 'hotel_booking_expert',
-        toolDescription: 'Book a hotel for the user.',
-      }),
-      carRentalBookingAgent().asTool({
-        toolName: 'car_rental_booking_expert',
-        toolDescription: 'Book a car rental for the user.',
-      }),
-      flightBookingAgent().asTool({
-        toolName: 'flight_booking_expert',
-        toolDescription: 'Book a flight for the user.',
-      }),
-      postBookingAgent().asTool({
-        toolName: 'post_booking_expert',
-        toolDescription: 'Help customer with their existing bookings.',
-      }),
+      getPhoneSessionTool,
+      hotelInfoSearchTool,
+      hotelBookingTool,
+      carRentalBookingTool,
+      flightBookingTool,
+      postBookingTool,
     ],
     mcpServers: mcpServers.length > 0 ? mcpServers : [],
   })
