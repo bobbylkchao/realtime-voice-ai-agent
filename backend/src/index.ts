@@ -20,8 +20,8 @@ const startServices = async () => {
 
   initTwilioHttpRoute(app)
   initWebSocketServer(httpServer)
-  initTwilioWebSocketServer(httpServer)
   initMcpServers(app, PORT)
+  initTwilioWebSocketServer(httpServer)
 
   httpServer.listen(PORT, () => {
     logger.info(`[Server] HTTP Server ready at: http://localhost:${PORT}`)
