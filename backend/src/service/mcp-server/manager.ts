@@ -76,18 +76,20 @@ class McpServerManager {
 
   /**
    * Get all connected MCP servers
-   * @param phoneCallOnly - If true, only return phone-call-only servers. If false, exclude them.
+   * @param isFromPhoneCall - If true, return phone-call-only servers as well
    */
-  getMcpServers(phoneCallOnly: boolean = false): MCPServerStreamableHttp[] {
+  getMcpServers(isFromPhoneCall: boolean = false): MCPServerStreamableHttp[] {
     const servers: MCPServerStreamableHttp[] = []
     for (const [name, server] of this.mcpServers.entries()) {
+      // First, find all config that is not phone-call-only, and push to servers
       const config = mcpServerList.find((c) => c.name === name)
-      if (config) {
-        if (phoneCallOnly && config.phoneCallOnly) {
-          servers.push(server)
-        } else if (!phoneCallOnly && !config.phoneCallOnly) {
-          servers.push(server)
-        }
+      if (config && !config.phoneCallOnly) {
+        servers.push(server)
+      }
+
+      // If isFromPhoneCall is true, find all config that is phone-call-only, and push to servers
+      if (isFromPhoneCall && config && config.phoneCallOnly) {
+        servers.push(server)
       }
     }
     return servers

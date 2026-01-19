@@ -165,35 +165,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         },
       })
 
-      // Set up event listeners
-      session.on(
-        'mcp_tool_call_started',
-        (_context: unknown, _agent: unknown, toolCall: unknown) => {
-          const toolCallInfo = toolCall as any
-          logger.info(
-            {
-              toolName: toolCallInfo.name,
-              toolCallId: toolCallInfo.callId,
-            },
-            '[Twilio Media Stream] MCP tool call started'
-          )
-        }
-      )
-
-      session.on(
-        'mcp_tool_call_completed',
-        (_context: unknown, _agent: unknown, toolCall: unknown) => {
-          const toolCallInfo = toolCall as any
-          logger.info(
-            {
-              toolName: toolCallInfo.name,
-              toolCallId: toolCallInfo.callId,
-            },
-            '[Twilio Media Stream] MCP tool call completed'
-          )
-        }
-      )
-
+      // Set up essential event listeners
       session.on('error', (error) => {
         logger.error(
           { error, errorType: (error as any)?.type },
@@ -201,74 +173,11 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         )
       })
 
-      session.on('connection_change', (status) => {
-        logger.info(
-          { status },
-          '[Twilio Media Stream] Connection status changed'
-        )
-      })
-
-      // Listen for audio events to ensure audio is working
+      // Listen for audio output to verify it's working
       session.on('audio', (audioEvent) => {
         logger.info(
           { audioLength: audioEvent.data?.byteLength },
           '[Twilio Media Stream] Audio output received from session'
-        )
-      })
-
-      // Listen for input audio to ensure audio input is working
-      session.on('input_audio_buffer.committed', () => {
-        logger.info('[Twilio Media Stream] Input audio buffer committed (user speech detected)')
-      })
-
-      session.on('input_audio_buffer.speech_started', () => {
-        logger.info('[Twilio Media Stream] User speech started')
-      })
-
-      session.on('input_audio_buffer.speech_stopped', () => {
-        logger.info('[Twilio Media Stream] User speech stopped')
-      })
-
-      // Listen for response events
-      session.on('response.created', () => {
-        logger.info('[Twilio Media Stream] Response created')
-      })
-
-      session.on('response.output_item.added', (event) => {
-        const eventInfo = event as any
-        logger.info(
-          {
-            eventType: eventInfo.type,
-            itemType: eventInfo.item?.type,
-            itemText: eventInfo.item?.text || eventInfo.item?.transcript,
-          },
-          '[Twilio Media Stream] Response output item added'
-        )
-      })
-
-      session.on('response.output_item.done', (event) => {
-        const eventInfo = event as any
-        logger.info(
-          {
-            eventType: eventInfo.type,
-            itemType: eventInfo.item?.type,
-          },
-          '[Twilio Media Stream] Response output item done'
-        )
-      })
-
-      session.on('response.done', () => {
-        logger.info('[Twilio Media Stream] Response done')
-      })
-
-      session.on('response.audio_transcript.delta', (event) => {
-        const eventInfo = event as any
-        logger.info(
-          {
-            delta: eventInfo.delta,
-            transcript: eventInfo.transcript,
-          },
-          '[Twilio Media Stream] Response audio transcript delta'
         )
       })
 
@@ -290,8 +199,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
           // Agent instructions require it to:
           // 1. Call get_phone_session tool first
           // 2. Then greet with hotel name from phone session
-          // This ensures proper order and personalized greeting
-          // Use transport layer to send a minimal input that triggers agent to start
+          // Use a non-empty text to ensure agent responds
           setTimeout(() => {
             try {
               twilioTransportLayer.sendMessage(
@@ -301,7 +209,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                   content: [
                     {
                       type: 'input_text',
-                      text: '', // Empty text to trigger agent to start following instructions
+                      text: 'start', // Trigger text to make agent start following instructions
                     },
                   ],
                 },
@@ -316,7 +224,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
                 '[Twilio Media Stream] Error triggering agent start'
               )
             }
-          }, 500) // Small delay to ensure session is fully ready
+          }, 1000) // Increased delay to ensure session and audio channels are fully ready
         })
         .catch((error) => {
           logger.error(
