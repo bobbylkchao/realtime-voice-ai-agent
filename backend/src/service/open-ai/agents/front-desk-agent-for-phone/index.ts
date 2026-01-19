@@ -22,7 +22,6 @@ export const frontDeskAgentForPhone = (
   mcpServers: MCPServerStreamableHttp[],
   customerPhoneNumber?: string
 ): RealtimeAgent<{ history: RealtimeItem[] }> => {
-  console.log('mcpServers', mcpServers)
   const companyName = TESTING_COMPANY_NAME[TESTING_TYPE]
   const frontDeskInstructions = getFrontDeskPhoneAgentInstructions(
     companyName,
