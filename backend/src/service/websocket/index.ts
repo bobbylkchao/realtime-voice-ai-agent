@@ -98,6 +98,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // Use withTrace at the top level to provide tracing context for the entire WebSocket connection lifecycle
     // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
     withTrace('twilioWebSocketConnection', async () => {
+      console.log('ws', ws)
+
       let greetingSent = false
 
       logger.info(
