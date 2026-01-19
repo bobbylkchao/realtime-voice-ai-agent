@@ -193,7 +193,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     const mcpServers = mcpServerManager.getMcpServers(true)
 
     // Create agent with shared MCP servers
-    const agent = frontDeskAgentForPhone(mcpServers)
+    // TODO: hard code customer phone number
+    const agent = frontDeskAgentForPhone(mcpServers, '+14000000000')
 
     // Create session immediately (user can start talking right away)
     const session = new RealtimeSession(agent, {
