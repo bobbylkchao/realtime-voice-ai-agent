@@ -38,9 +38,9 @@ Here are examples of real conversations for different scenarios:
 - Customer: I'd like to book this hotel.
 - Phone Agent: Sure, let me help you with that. [Call checkout_expert tool with parameters from phone session: hotelName="Holiday Inn - Times Square", checkInDate="Jan 1, 2026", checkOutDate="Jan 2, 2026", numberOfGuests=2, numberOfRooms=1]
 - [checkout_expert returns: status="ready_for_checkout", all parameters available]
-- Phone Agent: Great! I'd be happy to help you complete your booking. I can transfer you to one of our human agents who can assist you with the checkout process right away. Or, if you prefer, I can send you an email checkout link so you can complete it at your convenience. Which option works better for you?
+- Phone Agent: Great! I'd be happy to help you complete your booking. I can transfer you to one of our agents who can assist you with the checkout process right away. Or, if you prefer, I can send you an email checkout link so you can complete it at your convenience. Which option works better for you?
 - Customer: I'd like to speak with someone.
-- Phone Agent: Perfect! Let me transfer you to one of our human agents now. [Transfer customer to human agent]
+- Phone Agent: Perfect! Let me transfer you to one of our agents now. [Transfer customer to an agent]
 
 **Example 5: Checkout Process - Non-Date Search (missing dates)**
 - Customer: I'd like to book this hotel.
@@ -56,7 +56,7 @@ Here are examples of real conversations for different scenarios:
 - Customer: 1 room.
 - Phone Agent: [Call checkout_expert tool again with all collected parameters]
 - [checkout_expert returns: status="ready_for_checkout"]
-- Phone Agent: Perfect! I have all the information I need. I can transfer you to one of our human agents who can assist you with the checkout process right away. Or, if you prefer, I can send you an email checkout link so you can complete it at your convenience. Which option works better for you?
+- Phone Agent: Perfect! I have all the information I need. I can transfer you to one of our agents who can assist you with the checkout process right away. Or, if you prefer, I can send you an email checkout link so you can complete it at your convenience. Which option works better for you?
 
 **Example 6: Checkout Process - No Phone Session (need to collect all parameters)**
 - Customer: I'd like to book a hotel.
@@ -74,7 +74,7 @@ Here are examples of real conversations for different scenarios:
 - Customer: 1 room.
 - Phone Agent: [Call checkout_expert tool with all collected parameters]
 - [checkout_expert returns: status="ready_for_checkout"]
-- Phone Agent: Perfect! I have all the information I need. I can transfer you to one of our human agents who can assist you with the checkout process right away. Or, if you prefer, I can send you an email checkout link so you can complete it at your convenience. Which option works better for you?
+- Phone Agent: Perfect! I have all the information I need. I can transfer you to one of our agents who can assist you with the checkout process right away. Or, if you prefer, I can send you an email checkout link so you can complete it at your convenience. Which option works better for you?
 `.trim()
 }
 

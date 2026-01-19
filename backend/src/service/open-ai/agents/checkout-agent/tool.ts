@@ -5,7 +5,7 @@ import { tool } from '@openai/agents-realtime'
  * Checkout Tool
  * 
  * This tool validates checkout parameters and determines if all required information
- * is available before proceeding with checkout (transfer to human agent or email checkout link).
+ * is available before proceeding with checkout (transfer to agent or email checkout link).
  * 
  * The tool checks for required parameters:
  * - hotelName (required)
@@ -67,7 +67,7 @@ export const checkoutTool = tool({
     // All parameters are available
     return JSON.stringify({
       status: 'ready_for_checkout',
-      message: 'All required checkout parameters are available. You can now proceed with checkout options (transfer to human agent or email checkout link).',
+      message: 'All required checkout parameters are available. You can now proceed with checkout options (transfer to an agent or email checkout link).',
       parameters: {
         hotelName,
         checkInDate,
