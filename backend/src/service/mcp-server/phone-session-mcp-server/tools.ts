@@ -25,10 +25,6 @@ export const registerTools = (mcpServer: McpServer) => {
         },
       },
       async ({ phoneNumber }) => {
-        logger.info(
-          { phoneNumber },
-          '[Phone Session MCP Server/Tool Call] Getting phone session based on phone number'
-        )
         const output = {
           customerPhoneNumber: phoneNumber,
           productName: 'hotel',
@@ -41,6 +37,12 @@ export const registerTools = (mcpServer: McpServer) => {
           numberOfGuests: 2,
           numberOfRooms: 1,
         }
+
+
+        logger.info(
+          { output },
+          '[Phone Session MCP Server/Tool Call] Return phone session based on phone number'
+        )
         return {
           content: [{ type: 'text', text: JSON.stringify(output) }],
           structuredContent: output,

@@ -81,7 +81,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
 
     if (pathname === '/media-stream') {
       // TODO: how to get customerPhoneNumber from the request
-      const customerPhoneNumber = '+14000000000'
+      const customerPhoneNumber = '+12045946733'
 
       wss.handleUpgrade(request, socket, head, (ws) => {
         // Store request and customerPhoneNumber in ws for later use
