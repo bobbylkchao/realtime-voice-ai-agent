@@ -3,9 +3,9 @@ import { Server } from 'socket.io'
 import { WebSocketServer, WebSocket } from 'ws'
 import { RealtimeSession } from '@openai/agents-realtime'
 import { TwilioRealtimeTransportLayer } from '@openai/agents-extensions'
-import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
+import { withTrace } from '@openai/agents'
 import { handleRealtimeVoice, VoiceSessionManager } from '../open-ai'
-import { mcpServerList } from '../mcp-server'
+import { mcpServerManager } from '../mcp-server/manager'
 import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from './types'
 import logger from '../../misc/logger'
 import { frontDeskAgentForPhone } from '../open-ai/agents/front-desk-agent-for-phone'
@@ -188,8 +188,12 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
       '[Twilio Media Stream] TwilioRealtimeTransportLayer created immediately'
     )
 
-    // Create agent without MCP servers initially (we'll update it later)
-    const agent = frontDeskAgentForPhone([])
+    // Get shared MCP servers (already initialized at server startup)
+    // phoneCallOnly=true returns ALL servers (both phoneCallOnly: true and false)
+    const mcpServers = mcpServerManager.getMcpServers(true)
+
+    // Create agent with shared MCP servers
+    const agent = frontDeskAgentForPhone(mcpServers)
 
     // Create session immediately (user can start talking right away)
     const session = new RealtimeSession(agent, {
@@ -253,95 +257,23 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     })
 
     // Connect IMMEDIATELY (this is critical!)
-    // After session is connected, connect MCP servers and update agent
-    // Declare mcpServers in outer scope so it's accessible in ws.on('close')
+    // Agent already includes shared MCP servers (initialized at server startup)
     // 
-    // NOTE: This is a working version where:
-    // - Greeting voice message works correctly
-    // - Customer can hear the voice
-    // - MCP servers connect after session is established
-    // - WebSocket is guaranteed to be open before agent update
-    const mcpServers: MCPServerStreamableHttp[] = []
-    
+    // NOTE: MCP servers are now shared across all sessions (initialized at server startup)
+    // This improves performance and reduces resource usage
     session
       .connect({
         apiKey: openAiApiKey,
       })
       .then(() => {
         logger.info(
-          { callId },
+          { callId, mcpServerCount: mcpServers.length },
           '[Twilio Media Stream] Connected to OpenAI Realtime API immediately'
         )
 
-        // Now that session is connected, connect MCP servers and update agent
-        Promise.all(
-          mcpServerList.map(async (mcpServerConfig) => {
-            try {
-              const mcpServer = new MCPServerStreamableHttp({
-                url: mcpServerConfig.url,
-                name: mcpServerConfig.name,
-              })
-              await mcpServer.connect()
-              mcpServers.push(mcpServer)
-              logger.info(
-                {
-                  callId,
-                  mcpServerName: mcpServerConfig.name,
-                },
-                '[Twilio Media Stream] MCP server connected successfully (background)'
-              )
-            } catch (mcpError) {
-              logger.warn(
-                {
-                  mcpError,
-                  callId,
-                  mcpServerName: mcpServerConfig.name,
-                },
-                '[Twilio Media Stream] Failed to connect to MCP server (non-critical)'
-              )
-            }
-          })
-        )
-          .then(async () => {
-            // Update agent with MCP servers after they're connected
-            // Session is already connected, so WebSocket is open
-            // Tracing context is already available from top-level withTrace
-            if (mcpServers.length > 0) {
-              const updatedAgent = frontDeskAgentForPhone(mcpServers)
-              try {
-                await session.updateAgent(updatedAgent)
-                logger.info(
-                  {
-                    callId,
-                    mcpServerCount: mcpServers.length,
-                  },
-                  '[Twilio Media Stream] Agent updated with MCP servers successfully'
-                )
-                
-                // Immediately send greeting after agent is updated (optimization: no need to wait for twilio_message)
-                sendGreetingIfReady()
-              } catch (error) {
-                logger.error(
-                  { error, callId },
-                  '[Twilio Media Stream] Failed to update agent with MCP servers'
-                )
-              }
-            } else {
-              logger.info(
-                { callId },
-                '[Twilio Media Stream] No MCP servers connected, agent remains unchanged'
-              )
-              
-              // Even without MCP servers, send greeting immediately
-              sendGreetingIfReady()
-            }
-          })
-          .catch((error) => {
-            logger.error(
-              { error, callId },
-              '[Twilio Media Stream] Error during MCP server connection process'
-            )
-          })
+        // Send greeting after session is connected
+        // Agent already includes MCP servers, no need to update
+        sendGreetingIfReady()
       })
       .catch((error) => {
         logger.error(
@@ -366,24 +298,8 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         )
       }
 
-      // Close MCP servers
-      for (const mcpServer of mcpServers) {
-        try {
-          await mcpServer.close()
-          logger.info(
-            {
-              callId,
-              mcpServerName: mcpServer.name,
-            },
-            '[Twilio Media Stream] MCP server closed successfully'
-          )
-        } catch (error) {
-          logger.error(
-            { error, callId, mcpServerName: mcpServer.name },
-            '[Twilio Media Stream] Error closing MCP server'
-          )
-        }
-      }
+      // Note: MCP servers are shared across all sessions and managed globally
+      // They will be closed during server shutdown, not per-session
     })
 
     ws.on('error', (error) => {

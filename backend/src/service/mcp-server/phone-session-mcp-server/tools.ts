@@ -5,11 +5,11 @@ import logger from '../../../misc/logger'
 export const registerTools = (mcpServer: McpServer) => {
   try {
     mcpServer.registerTool(
-      'get-phone-session-based-on-phone-number',
+      'get_phone_session',
       {
         title: 'Get Phone Session Based on Phone Number',
         description:
-          'Get phone session based on phone number.',
+          'Get customer phone session data based on phone number. This retrieves the customer\'s current browsing session information including hotel name, destination city, booking dates, number of guests, and rooms.',
         inputSchema: {
           phoneNumber: z.string(),
         },
@@ -26,10 +26,6 @@ export const registerTools = (mcpServer: McpServer) => {
         },
       },
       async ({ phoneNumber }) => {
-        logger.info(
-          { phoneNumber },
-          '[Phone Session MCP Server/Tool Call] Getting phone session based on phone number'
-        )
         const output = {
           customerPhoneNumber: phoneNumber,
           productName: 'hotel',
@@ -37,10 +33,16 @@ export const registerTools = (mcpServer: McpServer) => {
           bookingStartDate: 'Jan 1, 2026',
           bookingEndDate: 'Jan 2, 2026',
           hotelName: 'Holiday Inn - Times Square',
-          hotelAddress: '585 8th Avenue, New York, NY - Times Square - Theatre District',
+          hotelAddress: '585 8th Avenue, New York, NY',
           numberOfGuests: 2,
           numberOfRooms: 1,
         }
+
+        logger.info(
+          { output },
+          '[Phone Session MCP Server/Tool Call] Getting phone session based on phone number'
+        )
+
         return {
           content: [{ type: 'text', text: JSON.stringify(output) }],
           structuredContent: output,
@@ -48,7 +50,7 @@ export const registerTools = (mcpServer: McpServer) => {
       }
     )
   } catch (error) {
-    logger.error({ error }, '[Phone Session MCP Server] Error registering tools')
+    logger.error(error, '[Phone Session MCP Server] Error registering tools')
     throw error
   }
 }
