@@ -1,6 +1,6 @@
 # Realtime Voice AI Agent Starter Kit
 
-A starter kit and template for building realtime voice AI agents using OpenAI's Realtime API. This project provides a production-ready foundation with the latest OpenAI SDK capabilities, including built-in support for phone-based voice interactions via Twilio, enabling developers to quickly start building their own voice AI applications for both web and phone channels.
+A starter kit and template for building realtime voice AI agents using OpenAI's Realtime API. This project enables your AI agent to handle voice conversations in two ways: **users can talk through their web browser**, or **your AI can answer phone calls directly**. Built with production-ready patterns, it includes everything you need to create voice AI applications that work both on the web and over the phone.
 
 ## 🎯 Purpose
 
@@ -163,42 +163,63 @@ npm run start
 The system consists of:
 
 1. **Frontend**: React application that handles audio capture, playback, and WebSocket communication
-2. **Backend**: Express server with Socket.IO for WebSocket connections
+2. **Backend**: Express server with dual-channel WebSocket support:
+   - **Web Channel**: Socket.IO for browser-based voice interactions
+   - **Phone Channel**: Native WebSocket for Twilio Media Streams
 3. **OpenAI Realtime API**: Handles voice-to-voice AI interactions
 4. **MCP Servers**: Provide tools and capabilities to AI agents
-5. **Twilio Integration** (optional): Phone call support via Twilio Media Streams API
+5. **Twilio Integration** (optional): Phone call support via Twilio Media Streams API ⭐
 
 For detailed architecture documentation, see:
 - [Backend Architecture](./doc/backend-voice-ai-agent-design.md)
 - [Frontend Audio Processing](./doc/frontend-audio-process.md)
 
-## Twilio Phone Integration
+## 📞 Twilio Phone Integration
 
-The system supports voice interactions via phone calls through Twilio integration.
+**This is a major feature!** The system supports **dual-channel voice interactions**:
+- 🌐 **Voice from Web**: Browser-based voice interactions via Socket.IO
+- 📞 **Voice from Phone**: Phone call support via Twilio Media Streams API
+
+Your AI agent can now handle both web-based and phone-based voice conversations seamlessly.
+
+### Architecture
+
+The backend supports two distinct voice interaction channels:
+
+1. **Web Channel** (`/realtime-voice`):
+   - Uses Socket.IO for WebSocket connections
+   - Handles browser-based voice interactions
+   - Frontend connects via `ws://localhost:4000/realtime-voice`
+
+2. **Phone Channel** (`/media-stream`):
+   - Uses native WebSocket for Twilio Media Streams
+   - Handles phone call voice interactions
+   - Twilio connects via `wss://your-domain.com/media-stream`
 
 ### Prerequisites
 
 - Twilio account with a phone number
 - Server accessible via HTTPS/WSS (for production)
+- OpenAI API key with Realtime API access
 
 ### Configuration
 
 1. **Enable Twilio Integration**:
 
-   In your `.env` file:
+   In your `backend/.env` file:
    ```env
    TWILIO_ENABLE=true
    TWILIO_WEBHOOK_URL=wss://your-domain.com/media-stream
    ```
 
-   Note: `TWILIO_WEBHOOK_URL` must be the full WebSocket URL with `wss://` protocol for production use.
+   **Important**: `TWILIO_WEBHOOK_URL` must be the full WebSocket URL with `wss://` protocol for production use.
 
 2. **Configure Twilio Phone Number**:
 
    In Twilio Console:
-   - Go to Phone Numbers → Manage → Active numbers
+   - Go to **Phone Numbers** → **Manage** → **Active numbers**
    - Select your phone number
-   - In the "Voice & Fax" section, set the webhook URL:
+   - In the **"Voice & Fax"** section, set the webhook URL:
      ```
      https://your-domain.com/incoming-call
      ```
@@ -206,12 +227,20 @@ The system supports voice interactions via phone calls through Twilio integratio
 
 ### How It Works
 
-1. User calls your Twilio phone number
-2. Twilio sends HTTP POST to `/incoming-call` endpoint
-3. Server responds with TwiML XML containing `<Stream>` directive
-4. Twilio connects to `/media-stream` WebSocket endpoint
-5. Real-time bidirectional audio streaming begins
-6. AI agent processes voice input and responds via phone
+1. **User calls** your Twilio phone number
+2. **Twilio sends** HTTP POST to `/incoming-call` endpoint
+3. **Server responds** with TwiML XML containing `<Stream>` directive pointing to `/media-stream`
+4. **Twilio connects** to `/media-stream` WebSocket endpoint
+5. **Real-time bidirectional audio streaming** begins between phone and AI agent
+6. **AI agent processes** voice input and responds via phone
+
+### Key Features
+
+- **Phone-Optimized Agent**: Specialized `frontDeskAgentForPhone` agent for phone conversations
+- **Phone Session Data**: Automatic retrieval of customer context based on phone number
+- **Immediate Response**: Optimized for low latency with immediate session connection
+- **Per-Call Isolation**: Each phone call gets its own isolated session
+- **MCP Integration**: Full MCP server support for phone conversations
 
 ### Local Development
 
@@ -226,6 +255,12 @@ TWILIO_WEBHOOK_URL=wss://abc123.ngrok.io/media-stream
 ```
 
 Then configure your Twilio webhook to point to `https://abc123.ngrok.io/incoming-call`.
+
+### Documentation
+
+For detailed Twilio integration documentation, see:
+- [Backend README](./backend/README.md#-twilio-phone-integration)
+- [Twilio Integration Guide](./backend/docs/twilio-integration.md)
 
 ## Customization
 
