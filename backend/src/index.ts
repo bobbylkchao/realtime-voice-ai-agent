@@ -29,7 +29,7 @@ const startServices = async () => {
       `[Server] Websocket Server ready at: ws://localhost:${PORT}/realtime-voice`
     )
 
-    if (IS_TWILIO_ENABLE) {
+    if (IS_TWILIO_ENABLE && TWILIO_WEBHOOK_URL) {
       logger.info(
         `[Server] Twilio Media Stream ready at: ${TWILIO_WEBHOOK_URL}`
       )

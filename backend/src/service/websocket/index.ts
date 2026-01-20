@@ -64,6 +64,12 @@ const setGreetingSent = (callId: string) => {
   greetingRecord.set(callId, true)
 }
 
+// TODO: mock customer's phone number
+// Case 1: Has date search, use +14000000000
+// Case 2: No date search, use '+15000000000'
+// Case 3: No phone session, use '+16000000000'
+const mockCustomerPhoneNumber = '+15000000000'
+
 export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
   if (process.env.TWILIO_ENABLE !== 'true') {
     logger.info('[Twilio] Skip initializing Twilio WebSocket server')
@@ -107,7 +113,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
         if (typeof data === 'string') {
           // Log JSON messages to see what's being sent
           try {
-            const json = JSON.parse(data)
+            JSON.parse(data)
           } catch {
             logger.debug(
               { callId, message: data.substring(0, 200) },
@@ -162,7 +168,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             '[Twilio Media Stream] Greeting sent'
           )
           setGreetingSent(callId)
-        } catch (error) {
+        } catch {
           logger.info(
             { callId },
             '[Twilio Media Stream] will retry on next twilio_message to send greeting'
@@ -174,12 +180,9 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     twilioTransportLayer.on('*', (event) => {
       if (event.type === 'twilio_message') {
         if (!callId) {
-          console.log('[Twilio Media Stream] twilio_message event received')
+          console.log('[Twilio Media Stream] update callId')
           callId = event?.message?.start?.callSid || ''
         }
-
-        // Try to send greeting when twilio_message is received
-        sendGreetingIfReady()
       }
     })
 
@@ -189,7 +192,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     )
 
     // Create agent without MCP servers initially (we'll update it later)
-    const agent = frontDeskAgentForPhone([])
+    const agent = frontDeskAgentForPhone([], mockCustomerPhoneNumber)
 
     // Create session immediately (user can start talking right away)
     const session = new RealtimeSession(agent, {
@@ -202,7 +205,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
               type: 'server_vad',
               create_response: true,
               interrupt_response: true,
-              silence_duration_ms: 500,
+              silence_duration_ms: 300,
             },
           },
           output: {
@@ -307,7 +310,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             // Session is already connected, so WebSocket is open
             // Tracing context is already available from top-level withTrace
             if (mcpServers.length > 0) {
-              const updatedAgent = frontDeskAgentForPhone(mcpServers)
+              const updatedAgent = frontDeskAgentForPhone(mcpServers, mockCustomerPhoneNumber)
               try {
                 await session.updateAgent(updatedAgent)
                 logger.info(
