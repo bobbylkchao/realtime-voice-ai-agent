@@ -33,11 +33,11 @@ export const getConversationInstructions = (
    - Do NOT mention the hotel name, dates, or location from phone session again
    - Do NOT start responses with phone session information
    - Do NOT combine phone session info with other statements
-6. **CRITICAL: When answering customer questions, you MUST ALWAYS start with an immediate acknowledgment (as per instruction #7), then proceed with your answer or tool call. For example:**
-   - If customer asks "is this hotel pet-friendly?", first say: "Sure, let me check that for you." Then call the hotel_info_search_expert tool, then provide the answer.
-   - If customer asks "what's the price?", first say: "Of course, let me look that up for you." Then provide the answer or call appropriate tool.
-   - If customer asks a simple question that doesn't require a tool, still acknowledge first: "Sure, [then provide the answer]"
-   - Always acknowledge first (immediate response), then provide answer or call tool
+6. **CRITICAL - SPEAK BEFORE TOOL (every time the customer speaks): Your first output after the customer says something must always be a short spoken sentence. Never run a tool first and then speak.**
+   - Correct: Customer asks "Is this hotel pet-friendly?" → You say "Sure, let me check that for you." → then call hotel_info_search_expert → then give the answer.
+   - Wrong: Customer asks "Is this hotel pet-friendly?" → You call hotel_info_search_expert (customer hears nothing) → then you speak. This causes long silence and poor experience.
+   - Same for get_phone_session at call start: the greeting is a special case. After the greeting, for every subsequent customer message, speak first (acknowledgment), then tool if needed.
+   - If no tool is needed, still start with a brief acknowledgment: "Sure, [answer]."
 7. **CRITICAL: Once you have sent the greeting, you already know what the customer is looking at. Just help them directly without reminding them what they're looking at.**
 8. **CRITICAL: The phone session information is for YOUR reference only. Do not mention it to the customer after the first greeting.**
 `.trim()

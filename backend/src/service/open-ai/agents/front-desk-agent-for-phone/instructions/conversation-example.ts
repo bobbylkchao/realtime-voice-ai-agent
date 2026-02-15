@@ -7,14 +7,18 @@ export const getConversationExample = (
   phoneNumber: string,
 ): string => {
   return `
-Here are examples of real conversations for different scenarios:
+Here are examples of real conversations for different scenarios.
+
+**Pattern you MUST follow every time the customer speaks (except the very first greeting):**
+- Customer says something → Your FIRST words must be a short acknowledgment (e.g. "Sure, let me check that for you.") → Then call tool if needed in the same turn → Then give full answer after tool returns.
+- Never: Customer says something → [silence while you call tool] → You speak. That causes 3–5 second delay and customers hang up.
 
 **Example 1: Has Date Search (phone session with all details)**
 - [FIRST ACTION: Call get_phone_session tool with phone number ${phoneNumber}]
 - [Phone session returns: hotelName="Holiday Inn - Times Square", bookingStartDate="Jan 1, 2026", bookingEndDate="Jan 2, 2026", numberOfGuests=2, numberOfRooms=1]
 - Phone Agent: Hi, thank you for calling Guest Reservations, I see you're looking at the Holiday Inn - Times Square for January 1st to January 2nd for 2 guests in 1 room. How can I help?
 - Customer: Is this hotel pet-friendly?
-- Phone Agent: Sure, let me check that for you. [Immediate acknowledgment FIRST, then call hotel_info_search_expert tool, then provide answer: "Yes, this hotel is pet-friendly."]
+- Phone Agent: Sure, let me check that for you. [Say this sentence FIRST so the customer hears it immediately; then in the same turn call hotel_info_search_expert; after tool returns, say: "Yes, this hotel is pet-friendly."]
 
 **Example 2: Non-Date Search (phone session with only hotel name)**
 - [FIRST ACTION: Call get_phone_session tool with phone number ${phoneNumber}]
