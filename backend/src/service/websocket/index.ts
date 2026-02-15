@@ -209,7 +209,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
             },
           },
           output: {
-            voice: 'verse',
+            voice: 'marin',
           },
         },
       },
