@@ -197,7 +197,7 @@ export const initTwilioWebSocketServer = (httpServer: HttpServer) => {
     // Create session immediately (user can start talking right away)
     const session = new RealtimeSession(agent, {
       transport: twilioTransportLayer,
-      model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
+      model: process.env.OPENAI_MODEL || 'gpt-realtime',
       config: {
         audio: {
           input: {
