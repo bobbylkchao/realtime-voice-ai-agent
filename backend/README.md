@@ -33,7 +33,7 @@ Create a `.env` file in the `backend` directory with the following configuration
 ```env
 # OpenAI API Configuration (Required)
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_VOICE_MODEL=gpt-realtime
+OPENAI_MODEL=gpt-realtime
 
 # Server Configuration (Optional, defaults to 4000)
 PORT=4000

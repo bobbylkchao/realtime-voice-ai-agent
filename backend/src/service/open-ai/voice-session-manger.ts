@@ -68,7 +68,7 @@ const createOpenAiVoiceAgentAndSession = async (
       const openAiVoiceSession = new RealtimeSession(
         frontDeskAgent(mcpServers.get(clientId) || []),
         {
-          model: process.env.OPENAI_VOICE_MODEL || 'gpt-realtime',
+          model: process.env.OPENAI_MODEL || 'gpt-realtime',
           config: {
             audio: {
               input: {

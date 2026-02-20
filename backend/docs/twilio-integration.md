@@ -174,7 +174,7 @@ TWILIO_WEBHOOK_URL=wss://your-domain.com/media-stream
 
 # Required for OpenAI
 OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_VOICE_MODEL=gpt-realtime
+OPENAI_MODEL=gpt-realtime
 
 # Optional
 PORT=4000
