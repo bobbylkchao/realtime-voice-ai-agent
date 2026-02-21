@@ -1,16 +1,16 @@
 import { RealtimeAgent, RealtimeItem } from '@openai/agents-realtime'
 import { MCPServerStreamableHttp } from '@openai/agents'
-import { hotelBookingAgent } from '../hotel-booking-agent'
-import { carRentalBookingAgent } from '../car-rental-booking-agent'
-import { flightBookingAgent } from '../flight-booking-agent'
-import { postBookingAgent } from '../post-booking-agent'
-import { hotelInfoSearchAgent } from '../hotel-info-search-agent'
+import { hotelBookingAgent } from '../../general-agents/hotel-booking-agent'
+import { carRentalBookingAgent } from '../../general-agents/car-rental-booking-agent'
+import { flightBookingAgent } from '../../general-agents/flight-booking-agent'
+import { postBookingAgent } from '../../general-agents/post-booking-agent'
+import { hotelInfoSearchAgent } from '../../general-agents/hotel-info-search-agent'
 
 export const frontDeskAgent = (
   mcpServers: MCPServerStreamableHttp[]
 ): RealtimeAgent<{ history: RealtimeItem[] }> => {
   return new RealtimeAgent({
-    name: 'Front Desk Agent',
+    name: 'Front Desk Agent for Voice',
     voice: 'marin',
     instructions: `
     1. You are a helpful AI assistant.

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { tool } from '@openai/agents-realtime'
-import logger from '../../../../misc/logger'
+import logger from '../../../../../misc/logger'
 
 /**
  * Get phone session data based on phone number

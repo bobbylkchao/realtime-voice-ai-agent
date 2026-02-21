@@ -1,7 +1,7 @@
 import { Socket } from 'socket.io'
-import { RealtimeVoiceEventName } from '../websocket/types'
-import logger from '../../misc/logger'
-import { VoiceSessionManager } from '.'
+import { RealtimeVoiceEventName } from '../../types'
+import logger from '../../../../misc/logger'
+import { VoiceSessionManager } from '../../../open-ai'
 
 export const handleRealtimeVoice = async (
   eventName: RealtimeVoiceEventName,

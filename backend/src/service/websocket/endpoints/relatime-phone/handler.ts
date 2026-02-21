@@ -1,11 +1,10 @@
-import { Server as HttpServer } from 'http'
-import { WebSocketServer, WebSocket } from 'ws'
+import { WebSocket } from 'ws'
 import { RealtimeSession } from '@openai/agents-realtime'
 import { TwilioRealtimeTransportLayer } from '@openai/agents-extensions'
 import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
-import { mcpServerList } from '../../mcp-server'
-import { frontDeskAgentForPhone } from '../../open-ai/agents/front-desk-agent-for-phone'
-import logger from '../../../misc/logger'
+import { mcpServerList } from '../../../mcp-server'
+import { frontDeskAgentForPhone } from '../../../open-ai/agents/realtime-phone/front-desk-agent'
+import logger from '../../../../misc/logger'
 
 const greetingRecord = new Map<string, boolean>()
 
@@ -23,35 +22,13 @@ const setGreetingSent = (callId: string) => {
 // Case 3: No phone session, use '+16000000000'
 const mockCustomerPhoneNumber = '+15000000000'
 
-export const initMediaStreamWebSocketService = (httpServer: HttpServer) => {
-  // Use noServer option and handle upgrade manually to avoid conflicts with Socket.IO
-  const wss = new WebSocketServer({
-    noServer: true, // Don't automatically handle upgrade
-  })
+export const handleRealtimePhone = async (ws: WebSocket): Promise<void> => {
+  withTrace('twilioWebSocketConnection', async () => {
+    let callId = ''
 
-  // Manually handle upgrade only for /media-stream path
-  httpServer.on('upgrade', (request, socket, head) => {
-    const pathname = new URL(request.url || '', `http://${request.headers.host}`).pathname
-
-    if (pathname === '/media-stream') {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        // Store request in ws for later use
-        ;(ws as any).request = request
-        wss.emit('connection', ws, request)
-      })
-    }
-    // For all other paths (like /realtime-voice), let Socket.IO handle it
-  })
-
-  wss.on('connection', async (ws: WebSocket) => {
-    // Use withTrace at the top level to provide tracing context for the entire WebSocket connection lifecycle
-    // This ensures all operations (session.connect, updateAgent, function calls) have access to tracing context
-    withTrace('twilioWebSocketConnection', async () => {
-      let callId = ''
-
-      logger.info(
-        '[Twilio Media Stream] WebSocket connection established'
-      )
+    logger.info(
+      '[Twilio Media Stream] WebSocket connection established'
+    )
 
     // Wrap ws.send to log outgoing messages (for debugging protocol issues)
     // This helps identify what messages are being sent to Twilio
@@ -345,12 +322,11 @@ export const initMediaStreamWebSocketService = (httpServer: HttpServer) => {
       greetingRecord.delete(callId)
       callId = ''
     })
-    }).catch((tracingError) => {
-      // Log tracing errors separately (non-fatal)
-      logger.warn(
-        { tracingError },
-        '[Twilio Media Stream] Tracing error during WebSocket connection (non-fatal)'
-      )
-    })
+  }).catch((tracingError) => {
+    // Log tracing errors separately (non-fatal)
+    logger.warn(
+      { tracingError },
+      '[Twilio Media Stream] Tracing error during WebSocket connection (non-fatal)'
+    )
   })
 }

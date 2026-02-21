@@ -1,7 +1,7 @@
 import { Server as HttpServer } from 'http'
 import logger from '../../misc/logger'
 import { initRealtimeVoiceWebSocketService } from './endpoints/realtime-voice'
-import { initMediaStreamWebSocketService } from './endpoints/media-stream'
+import { initMediaStreamWebSocketService } from './endpoints/relatime-phone/media-stream'
 
 export const initWebSocketServer = (httpServer: HttpServer) => {
   initRealtimeVoiceWebSocketService(httpServer)

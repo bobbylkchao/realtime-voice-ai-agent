@@ -1,9 +1,9 @@
 import { RealtimeSession, TransportLayerAudio } from '@openai/agents-realtime'
 import { MCPServerStreamableHttp, withTrace } from '@openai/agents'
 import { Socket } from 'socket.io'
-import { mcpServerList } from '../mcp-server'
-import logger from '../../misc/logger'
-import { frontDeskAgent } from './agents/front-desk-agent'
+import { mcpServerList } from '../../mcp-server'
+import logger from '../../../misc/logger'
+import { frontDeskAgent } from '../agents/realtime-voice/front-desk-agent'
 
 const sessions = new Map<string, RealtimeSession>()
 const mcpServers: Map<string, MCPServerStreamableHttp[]> = new Map()

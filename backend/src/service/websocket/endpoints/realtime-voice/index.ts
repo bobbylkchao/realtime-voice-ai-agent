@@ -1,8 +1,9 @@
 import { Server as HttpServer } from 'http'
 import { Server } from 'socket.io'
-import { handleRealtimeVoice, VoiceSessionManager } from '../../open-ai'
-import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from '../types'
-import logger from '../../../misc/logger'
+import { VoiceSessionManager } from '../../../open-ai'
+import { handleRealtimeVoice } from './handler'
+import type { RealtimeVoiceEventName, RealtimeVoiceMessage } from '../../types'
+import logger from '../../../../misc/logger'
 
 export const initRealtimeVoiceWebSocketService = (httpServer: HttpServer) => {
   const wsServer = new Server(httpServer, {
